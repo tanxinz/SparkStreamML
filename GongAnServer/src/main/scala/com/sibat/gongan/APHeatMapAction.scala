@@ -37,7 +37,7 @@ class APHeatMapAction extends HBaseActionTrait{
   get("/predict/:times/:id"){
     val times = getTimes(params("times").toInt)
     val res = HBaseScanByPrefixFilter(tablename,params("id"),times._1,times._2)
-    if (res!= null) format(rs)
+    if (res!= null) format(res)
     else halt(404,"Not Found!!")
   }
 
