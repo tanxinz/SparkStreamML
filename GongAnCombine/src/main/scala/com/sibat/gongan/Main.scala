@@ -42,10 +42,10 @@ object Main  extends IPropertiesTrait{
 
 
 
-		// PersonalBase.getDS(sqlContext).write.parquet("personal")
-		val personal = sqlContext.read.parquet("PersonalMacImsiSzt")
+		PersonalBase.getDS(sqlContext).write.parquet("personal")
+		// val personal = sqlContext.read.parquet("PersonalMacImsiSzt")
 		// EsSpark.saveToEs(PersonalBase.getDS(sqlContext).rdd, "personal/docs",Map("es.mapping.id" -> "idno"))
-		EsSpark.saveToEs(personal.rdd.map(_.mkString(",")).map(PersonalBase.testParse(_)), "personal/docs",Map("es.mapping.id" -> "idno"))
+		// EsSpark.saveToEs(personal.rdd.map(_.mkString(",")).map(PersonalBase.testParse(_)), "personal/docs",Map("es.mapping.id" -> "idno"))
 		// val personal = sqlContext.read.format("org.elasticsearch.spark.sql").load("personal/docs")
 
 		// personal.write.mode(SaveMode.Overwrite).parquet("personals")

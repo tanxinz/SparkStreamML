@@ -7,9 +7,9 @@ import org.apache.spark.sql.SQLContext
 
 object PersonalBase extends Core with ESQueryTrait with IPropertiesTrait {
 
-  case class Personal(idno:java.lang.String,name :String,former_name :String,foreign_name :String,
-                      sex:String,birthday :String,nationality :String,national :String,
-                      education :String,marital_status :String,residence_addr :String,create_time :String,
+  case class Personal(idno:java.lang.String,name :java.lang.String,former_name :java.lang.String,foreign_name :java.lang.String,
+                      sex:java.lang.String,birthday :java.lang.String,nationality :java.lang.String,national :java.lang.String,
+                      education :java.lang.String,marital_status :java.lang.String,residence_addr :java.lang.String,create_time :java.lang.String,
                       household_flag :String,nowlive :String,id_number_18 :String,deptid:String,
                       zdrytype :String,zdrystate :String,globalmanage :String,nickname :String,
                       birthplace :String,currentwork :String,convictions :String,maincontrol :String,
@@ -18,7 +18,7 @@ object PersonalBase extends Core with ESQueryTrait with IPropertiesTrait {
                       wetherxd :String,lx :String,sg :String,remark :String,
                       gjryzt :String,addperson :String,sztkh :String,phone :String,
                       qq :String,email :String,addpersonid :String,sjly :String,
-                      update_time :String,check_status :String,important:String
+                      update_time :String,check_status :String
                     )
 
   case class TestPersonal(idno:java.lang.String,name :String,former_name :String,foreign_name :String,
@@ -32,7 +32,7 @@ object PersonalBase extends Core with ESQueryTrait with IPropertiesTrait {
                                         wetherxd :String,lx :String,sg :String,remark :String,
                                         gjryzt :String,addperson :String,sztkh :String,phone :String,
                                         qq :String,email :String,addpersonid :String,sjly :String,
-                                        update_time :String,check_status :String,important:String,mac:String,imsi:String,szt:String
+                                        update_time :String,check_status :String,mac:String,imsi:String,szt:String
                                       )
 
   def caseNull(a:Any) = {
@@ -48,7 +48,7 @@ object PersonalBase extends Core with ESQueryTrait with IPropertiesTrait {
                               rs(21),rs(22),rs(23),rs(24),rs(25),rs(26),rs(27),
                               rs(28),rs(29),rs(30),rs(31),rs(32),rs(33),rs(34),
                               rs(35),rs(36),rs(37),rs(38),rs(39),rs(40),
-                              rs(41),rs(42),rs(43),rs(44),rs(45),rs(46),rs(47),rs(48))
+                              rs(41),rs(42),rs(43),rs(44),rs(45),rs(46),rs(47))
   }
 
 
@@ -60,14 +60,14 @@ object PersonalBase extends Core with ESQueryTrait with IPropertiesTrait {
 		connectionProperties.put("password",POSTGRESPASSWD);
 		connectionProperties.put("driver","org.postgresql.Driver")
     sqlContext.read.jdbc("jdbc:postgresql://"+POSTGRESIP+":"+POSTGRESPORT+"/"+POSTGRESDATABASE,POSTGRESTABLE,connectionProperties).na.fill("")
-                    .map(rs => {println(rs)
+                    .map(rs => {
                       Personal(rs.getString(0),rs.getString(1),rs.getString(2),rs.getString(3),rs.getString(4),caseNull(rs.getTimestamp(5)),rs.getString(6),
                               rs.getString(7),rs.getString(8),rs.getString(9),rs.getString(10),caseNull(rs.getTimestamp(11)),rs.getString(12),rs.getString(13),
                               rs.getString(14),rs.getString(15),rs.getString(16),rs.getString(17),rs.getString(18),rs.getString(19),rs.getString(20),
                               rs.getString(21),rs.getString(22),rs.getString(23),rs.getString(24),rs.getString(25),rs.getString(26),rs.getString(27),
                               rs.getString(28),rs.getString(29),rs.getString(30),rs.getString(31),rs.getString(32),rs.getString(33),rs.getString(34),
                               rs.getString(35),rs.getString(36),rs.getString(37),rs.getString(38),rs.getString(39),rs.getString(40),rs.getString(41),
-                              rs.getString(42),rs.getString(43),caseNull(rs.getTimestamp(44)),caseNull(rs.getDouble(45)),"1"
+                              rs.getString(42),rs.getString(43),caseNull(rs.getTimestamp(44)),caseNull(rs.getDouble(45))
                             )})
 
 

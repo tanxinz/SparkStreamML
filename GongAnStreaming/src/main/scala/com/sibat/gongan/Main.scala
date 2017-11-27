@@ -218,6 +218,11 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 															.map(arr => parse(arr).asInstanceOf[APPointBase.Point])
 															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
 			}
+			case "ap_minute" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[APMinuteBase.Minute])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
 			case "ty_status" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
 															.map(arr => parse(arr).asInstanceOf[TYStatusBase.Status])
@@ -290,6 +295,7 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		val data = arr.toList
 		val any = topic match {
 			case "ap_point" => APPointBase.parseClass(data)
+			case "ap_minute" => APMinuteBase.parseClass(data)
 			case "rzx_device" => RZXDeviceBase.parseClass(data)
 			case "rzx_location" => RZXLocationBase.parseClass(data)
 			case "rzx_feature" => RZXFeatureBase.parseClass(data)
