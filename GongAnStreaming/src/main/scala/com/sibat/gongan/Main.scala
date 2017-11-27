@@ -1,0 +1,318 @@
+package com.sibat.gongan
+
+import org.apache.spark.{SparkConf,SparkContext}
+import org.apache.spark.rdd.RDD
+import org.apache.kafka.common.serialization.StringSerializer
+import org.apache.hadoop.hbase.client.{Put,Result}
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
+import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
+import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.streaming.{StreamingContext,Seconds,Minutes}
+import org.apache.spark.streaming.StreamingContext._
+import org.apache.spark.streaming.dstream.InputDStream
+import org.apache.spark.sql.SQLContext
+import org.apache.spark.sql.SaveMode
+import scala.util.Try
+import java.util.Properties
+
+import com.sibat.gongan.util._
+import com.sibat.gongan.imp._
+import com.sibat.gongan.base._
+
+
+object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
+
+	def sparkInit(appName:String):SparkContext = new SparkContext(new SparkConf().setAppName(appName).set("spark.cores.max","16"))
+
+	def sparkStreamingInit(sc:SparkContext)(sec:Int):StreamingContext = new StreamingContext(sc,Seconds(sec))
+
+	def kafkaProducerConfig(brokers:String) = {
+    	val p = new Properties()
+    	p.setProperty("bootstrap.servers", brokers)
+    	p.setProperty("key.serializer", classOf[StringSerializer].getName)
+    	p.setProperty("value.serializer", classOf[StringSerializer].getName)
+    	p
+  	}
+
+	def main(args: Array[String]): Unit = {
+
+		val sc = sparkInit(APPNAME)
+
+		//加载配置文件到worker上
+		sc.addFile("/home/hadoop/Gongan/Streaming/common.properties")
+
+		//sql 生成
+		val sqlContext:SQLContext = new SQLContext(sc)
+
+		val ssc = sparkStreamingInit(sc)(APPSTREAMINGSPAN.toInt)
+
+		ssc.checkpoint("checkpoint")
+
+		// 广播KafkaSink
+		val kafkaProducer: Broadcast[KafkaSink[String, String]] = ssc.sparkContext.broadcast(KafkaSink[String, String](kafkaProducerConfig(KAFKABROKERS)))
+
+		val connectionProperties = new Properties()
+		//增加数据库的用户名(user)密码(password),指定postgresql驱动(driver)
+		connectionProperties.put("user",POSTGRESUSER);
+		connectionProperties.put("password",POSTGRESPASSWD);
+		connectionProperties.put("driver","org.postgresql.Driver");
+
+		// KafkaReader.Read(ssc,KAFKABROKERS,INPUTTOPICS).
+		// 	foreachRDD({
+		// 		rdd => {
+		// 			if(!rdd.isEmpty){
+		// 			rdd.foreachPartition(
+		// 				partitionrdd => {
+		// 					val table = HBaseConnectionPool.Connection(HBASETABLENAME)
+		// 					partitionrdd.foreach(
+		// 					 	p =>{
+		// 								val alarm:Map[String,String] = SZTBase.Alarm(p._2.toString)
+		//
+		// 								kafkaProducer.value.send(OUTPUTTOPICS, alarm("status"))
+		// 								// write to hbase
+		// 								if(alarm("status") == "Hit")  table.put(SZTBase.FormatPut(alarm))
+		// 						})
+		// 					table.flushCommits()
+		// 					table.close()
+		// 					})
+		// 				}
+		// 			}
+		// 		})
+
+		Try{
+			for(topic <- INPUTTOPICS.split(",")){
+					KafkaReader.Read(ssc,KAFKABROKERS,topic).
+						foreachRDD({
+							rdd => {
+								if(!rdd.isEmpty){
+								// rdd.foreachPartition(
+								// 	partitionrdd => {
+								// 		partitionrdd.foreach(
+								// 		 	p =>{
+								// 				val alarm = Alarm(topic,p._2.toString)
+								// 				if(alarm != null){
+								// 					for(i <- alarm){
+								// 						i match {
+								// 							case PARSEERROR =>
+								// 							case info:String => kafkaProducer.value.send(WARNTEMPTOPICS, topic+","+info)
+								// 							case _ =>
+								// 						}
+								// 					}
+								// 				}
+								// 			})
+								// 		}
+								// 	)
+										println("-------------------------------------------------")
+										println(rdd.count())
+										//存储rdd为parquet
+										toParquet(sqlContext)(topic)(rdd.map(_._2.toString))
+									}
+								}
+							})
+						}
+					}
+
+			// val table = HBaseConnectionPool.Connection(WARNNINGTABLE)
+			KafkaReader.Read(ssc,KAFKABROKERS,WARNTEMPTOPICS).foreachRDD({
+				rdd => if(!rdd.isEmpty){
+					val table = HBaseConnectionPool.Connection(WARNNINGTABLE)
+					for(warn:String <- rdd.map(_._2).collect()){
+							println("####################"+warn)
+							table.put(WarnningBase.parse(warn))
+						}
+					table.flushCommits()
+					table.close()
+					// WarnningBase.toDF(sqlContext,rdd).toJSON.write.format("jdbc").mode("append")
+					// 																										.option("url", "jdbc:postgresql:node2:5432/personal")
+					// 																										.option("dbtable", "warnning")
+					// 																										.option("user", "postgres")
+					// 																										.option("password", "root")
+					// 																										.save()
+					// WarnningBase.toDF(sqlContext,rdd)
+					WarnningBase.toDF(sqlContext,rdd).write.mode("append")
+        						.jdbc("jdbc:postgresql://"+POSTGRESIP+":"+POSTGRESPORT+"/"+POSTGRESDATABASE,POSTGRESTABLE,connectionProperties)
+				}
+			})
+			// table.close()
+
+		ssc.start()
+		ssc.awaitTermination()
+	}
+
+	def Alarm(topic:String,data:String) = {
+			topic match {
+				case "rzx_feature" => RZXFeatureBase.Alarm(data)
+				case "sensordoor_idcard" => SensorIdcardBase.Alarm(data)
+				case "ty_imsi" => TYIMSIBase.Alarm(data)
+				case "ty_mac" => TYMACBase.Alarm(data)
+				case "ajm_4g" => AJM4GBase.Alarm(data)
+				case "ajm_wifi" => AJMWIFIBase.Alarm(data)
+				case "ajm_account" => AJMAccountBase.Alarm(data)
+				case "ajm_idcard" => AJMIdcardBase.Alarm(data)
+				case "ifaas_warning" => IFAASWarningBase.Alarm(data)
+				case "szt" => SZTBase.Alarm(data)
+				case "ap_point" => APPointBase.Alarm(data)
+				case _ => null
+			}
+	}
+
+	def toParquet(sqlContext:SQLContext)(topic:String)(data:RDD[String]) = {
+		import sqlContext.implicits._
+		val parse = ParseClass(topic)_
+		val floderandfile = getFloderAndFile
+		topic match {
+			case "rzx_device" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[RZXDeviceBase.Device])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "rzx_feature" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[RZXFeatureBase.Feature])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "rzx_location" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[RZXLocationBase.Location])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "trail" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[RZXTrailBase.Trail])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+"rzx_"+topic+"/"+floderandfile._1)
+			}
+			case "sensordoor_face" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[SensorFaceBase.Face])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "sensordoor_heartbeat" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[SensorHeartbeatBase.HeartBeat])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "sensordoor_idcard" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[SensorIdcardBase.Idcard])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "sensordoor_idcardresult" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[SensorIdcardResultBase.IdcardResult])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ty_imsi" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[TYIMSIBase.IMSI])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ty_mac" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[TYMACBase.MAC])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ap_point" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[APPointBase.Point])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ty_status" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[TYStatusBase.Status])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ajm_4g" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[AJM4GBase.A4G])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ajm_wifi" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[AJMWIFIBase.WIFI])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ajm_account" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[AJMAccountBase.Account])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ajm_idcard" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[AJMIdcardBase.Idcard])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "ifaas_warning" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[IFAASWarningBase.Warning])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case "szt" => {
+				data.map(_.split(",")).filter(arr => parse(arr) != null)
+															.map(arr => parse(arr).asInstanceOf[SZTBase.SZT])
+															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+			}
+			case _ => null
+		}
+
+	}
+
+	// def toParquet2(sqlContext:SQLContext)(topic:String)(data:RDD[String]) = {
+	// 	import sqlContext.implicits._
+	// 	val floderandfile = getFloderAndFile
+	// 	val save = (base:Core) => data.map(_.split(",")).filter(arr => base.parseClass(arr.toList) != None).map(arr => base.parseClass(arr.toList))
+	// 													       .toDF.write.parquet("GongAn/"+topic+"/"+floderandfile._1+"/"+floderandfile._2)
+	// 	topic match {
+	// 		case "rzx_feature" => save(RZXFeatureBase)
+	// 		case "sensordoor_idcard" => save(SensorIdcardBase)
+	// 		case "ty_imsi" => save(TYIMSIBase)
+	// 		case "ty_mac" => save(TYMACBase)
+	// 		case "ap_point" => save(APBase)
+	// 		case _ => null
+	// 	}
+	//
+	// }
+
+	// def saveDF[T <: Core](sqlContext:SQLContext)(base :T,topic:String,data:RDD[String]) = {
+	//
+	// 	data.map(_.split(",")).map(arr => base.parseClass(arr.toList))
+	// 												.toDF.write.parquet("GongAn/"+topic+"/"+floderandfile._1+"/"+floderandfile._2)
+	// }
+
+	def getFloderAndFile() = {
+		val format = new java.text.SimpleDateFormat("yyyyMMdd")
+		lazy val now = new java.util.Date()
+		(format.format(now),now.getTime.toString)
+	}
+
+	def ParseClass(topic:String)(arr:Array[String]):Any = {
+		val data = arr.toList
+		val any = topic match {
+			case "ap_point" => APPointBase.parseClass(data)
+			case "rzx_device" => RZXDeviceBase.parseClass(data)
+			case "rzx_location" => RZXLocationBase.parseClass(data)
+			case "rzx_feature" => RZXFeatureBase.parseClass(data)
+			case "trail" => RZXTrailBase.parseClass(data)
+			case "sensordoor_face" => SensorFaceBase.parseClass(data)
+			case "sensordoor_heartbeat" => SensorHeartbeatBase.parseClass(data)
+			case "sensordoor_idcard" => SensorIdcardBase.parseClass(data)
+			case "sensordoor_idcardresult" => SensorIdcardResultBase.parseClass(data)
+			case "ty_imsi" => TYIMSIBase.parseClass(data)
+			case "ty_mac" => TYMACBase.parseClass(data)
+			case "ty_status" => TYStatusBase.parseClass(data)
+			case "ajm_4g" => AJM4GBase.parseClass(data)
+			case "ajm_wifi" => AJMWIFIBase.parseClass(data)
+			case "ajm_account" => AJMAccountBase.parseClass(data)
+			case "ajm_idcard" => AJMIdcardBase.parseClass(data)
+			case "ifaas_warning" => IFAASWarningBase.parseClass(data)
+			case "szt" => SZTBase.parseClass(data)
+			case _ => return null
+		}
+		any match {
+			case Some(c) => c
+			case _ => return null
+		}
+	}
+
+}
