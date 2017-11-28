@@ -9,6 +9,7 @@ import org.apache.hadoop.hbase.mapreduce.TableOutputFormat
 import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.DataFrame
 import org.apache.spark.streaming.{StreamingContext,Seconds,Minutes}
 import org.apache.spark.streaming.StreamingContext._
 import org.apache.spark.streaming.dstream.InputDStream
@@ -81,6 +82,12 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		// 			}
 		// 		})
 
+		val personal = sc.broadcast(sqlContext.read.parquet("Personal"))
+
+		val floderandfile = getFloderAndFile
+
+		val todf = toDF(sqlContext)_
+
 		Try{
 			for(topic <- INPUTTOPICS.split(",")){
 					KafkaReader.Read(ssc,KAFKABROKERS,topic).
@@ -107,7 +114,15 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 										println("-------------------------------------------------")
 										println(rdd.count())
 										//存储rdd为parquet
-										toParquet(sqlContext)(topic)(rdd.map(_._2.toString))
+										val df = todf(topic,rdd.map(_._2.toString))
+										val alarm = Alarm(df,personal)
+										if(alarm.size != 0 ){
+											for (i <- alarm) kafkaProducer.value.send(WARNTEMPTOPICS, topic + ","+ i)
+										}
+										topic match {
+											case "trail" => df.write.mode(SaveMode.Append).parquet("GongAn/rzx_"+topic+"/"+floderandfile._1)
+											case _ => df.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+										}
 									}
 								}
 							})
@@ -141,127 +156,213 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		ssc.awaitTermination()
 	}
 
-	def Alarm(topic:String,data:String) = {
+	def Alarm(topic:String,data:DataFrame,personal:Broadcast[DataFrame]) = {
 			topic match {
-				case "rzx_feature" => RZXFeatureBase.Alarm(data)
-				case "sensordoor_idcard" => SensorIdcardBase.Alarm(data)
-				case "ty_imsi" => TYIMSIBase.Alarm(data)
-				case "ty_mac" => TYMACBase.Alarm(data)
-				case "ajm_4g" => AJM4GBase.Alarm(data)
-				case "ajm_wifi" => AJMWIFIBase.Alarm(data)
-				case "ajm_account" => AJMAccountBase.Alarm(data)
-				case "ajm_idcard" => AJMIdcardBase.Alarm(data)
-				case "ifaas_warning" => IFAASWarningBase.Alarm(data)
-				case "szt" => SZTBase.Alarm(data)
-				case "ap_point" => APPointBase.Alarm(data)
+				case "rzx_feature" => RZXFeatureBase.Alarm(data,personal)
+				case "sensordoor_idcard" => SensorIdcardBase.Alarm(data,personal)
+				case "ty_imsi" => TYIMSIBase.Alarm(data,personal)
+				// case "ty_mac" => TYMACBase.Alarm(data)
+				// case "ajm_4g" => AJM4GBase.Alarm(data)
+				// case "ajm_wifi" => AJMWIFIBase.Alarm(data)
+				// case "ajm_account" => AJMAccountBase.Alarm(data)
+				// case "ajm_idcard" => AJMIdcardBase.Alarm(data)
+				// case "ifaas_warning" => IFAASWarningBase.Alarm(data)
+				case "szt" => SZTBase.Alarm(data,personal)
+				case "ap_point" => APPointBase.Alarm(data,personal)
 				case _ => null
 			}
 	}
 
-	def toParquet(sqlContext:SQLContext)(topic:String)(data:RDD[String]) = {
+	def toDF(sqlContext:SQLContext)(topic:String,data:RDD[String]) = {
 		import sqlContext.implicits._
 		val parse = ParseClass(topic)_
 		val floderandfile = getFloderAndFile
 		topic match {
 			case "rzx_device" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[RZXDeviceBase.Device])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[RZXDeviceBase.Device]).toDF
 			}
 			case "rzx_feature" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[RZXFeatureBase.Feature])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[RZXFeatureBase.Feature]).toDF
 			}
 			case "rzx_location" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[RZXLocationBase.Location])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[RZXLocationBase.Location]).toDF
 			}
 			case "trail" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[RZXTrailBase.Trail])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+"rzx_"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[RZXTrailBase.Trail]).toDF
 			}
 			case "sensordoor_face" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[SensorFaceBase.Face])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[SensorFaceBase.Face]).toDF
 			}
 			case "sensordoor_heartbeat" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[SensorHeartbeatBase.HeartBeat])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[SensorHeartbeatBase.HeartBeat]).toDF
 			}
 			case "sensordoor_idcard" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[SensorIdcardBase.Idcard])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[SensorIdcardBase.Idcard]).toDF
 			}
 			case "sensordoor_idcardresult" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[SensorIdcardResultBase.IdcardResult])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[SensorIdcardResultBase.IdcardResult]).toDF
 			}
 			case "ty_imsi" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[TYIMSIBase.IMSI])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[TYIMSIBase.IMSI]).toDF
 			}
 			case "ty_mac" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[TYMACBase.MAC])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[TYMACBase.MAC]).toDF
 			}
 			case "ap_point" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[APPointBase.Point])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[APPointBase.Point]).toDF
 			}
 			case "ap_minute" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[APMinuteBase.Minute])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[APMinuteBase.Minute]).toDF
 			}
 			case "ty_status" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[TYStatusBase.Status])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[TYStatusBase.Status]).toDF
 			}
 			case "ajm_4g" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[AJM4GBase.A4G])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[AJM4GBase.A4G]).toDF
 			}
 			case "ajm_wifi" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[AJMWIFIBase.WIFI])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[AJMWIFIBase.WIFI]).toDF
 			}
 			case "ajm_account" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[AJMAccountBase.Account])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[AJMAccountBase.Account]).toDF
 			}
 			case "ajm_idcard" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[AJMIdcardBase.Idcard])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[AJMIdcardBase.Idcard]).toDF
 			}
 			case "ifaas_warning" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[IFAASWarningBase.Warning])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[IFAASWarningBase.Warning]).toDF
 			}
 			case "szt" => {
 				data.map(_.split(",")).filter(arr => parse(arr) != null)
-															.map(arr => parse(arr).asInstanceOf[SZTBase.SZT])
-															.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+															.map(arr => parse(arr).asInstanceOf[SZTBase.SZT]).toDF
 			}
 			case _ => null
 		}
 
 	}
+
+	// def toParquet(sqlContext:SQLContext)(topic:String)(data:RDD[String]) = {
+	// 	import sqlContext.implicits._
+	// 	val parse = ParseClass(topic)_
+	// 	val floderandfile = getFloderAndFile
+	// 	topic match {
+	// 		case "rzx_device" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[RZXDeviceBase.Device])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "rzx_feature" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[RZXFeatureBase.Feature])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "rzx_location" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[RZXLocationBase.Location])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "trail" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[RZXTrailBase.Trail])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+"rzx_"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "sensordoor_face" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[SensorFaceBase.Face])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "sensordoor_heartbeat" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[SensorHeartbeatBase.HeartBeat])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "sensordoor_idcard" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[SensorIdcardBase.Idcard])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "sensordoor_idcardresult" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[SensorIdcardResultBase.IdcardResult])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ty_imsi" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[TYIMSIBase.IMSI])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ty_mac" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[TYMACBase.MAC])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ap_point" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[APPointBase.Point])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ap_minute" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[APMinuteBase.Minute])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ty_status" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[TYStatusBase.Status])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ajm_4g" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[AJM4GBase.A4G])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ajm_wifi" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[AJMWIFIBase.WIFI])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ajm_account" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[AJMAccountBase.Account])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ajm_idcard" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[AJMIdcardBase.Idcard])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "ifaas_warning" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[IFAASWarningBase.Warning])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case "szt" => {
+	// 			data.map(_.split(",")).filter(arr => parse(arr) != null)
+	// 														.map(arr => parse(arr).asInstanceOf[SZTBase.SZT])
+	// 														.toDF.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
+	// 		}
+	// 		case _ => null
+	// 	}
+  //
+	// }
 
 	// def toParquet2(sqlContext:SQLContext)(topic:String)(data:RDD[String]) = {
 	// 	import sqlContext.implicits._

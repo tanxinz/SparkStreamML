@@ -58,24 +58,24 @@ object RZXFeatureBase extends Core {
                                 val s = Feature(arr.getString(0),arr.getString(1),arr.getString(2),arr.getString(3),
                                               arr.getString(4),arr.getString(5),arr.getString(6),arr.getString(7),
                                               arr.getString(8),arr.getString(9),arr.getString(10),arr.getString(11),
-                                              arr.getString(12),arr.getString(13),arr.getString(14).replace("-",""),arr.getString(15),
+                                              arr.getString(12),arr.getString(13),arr.getString(14),arr.getString(15),
                                               arr.getString(16),arr.getString(17),arr.getString(18),arr.getString(19),
                                               arr.getString(20),arr.getString(21),arr.getString(22),arr.getString(23),
                                               arr.getString(24),arr.getString(25),arr.getString(26),arr.getString(27))
-                                val put = new Put(Bytes.toBytes(s.mac+"#"+stamp2Time(s.starttime)+"#rzx"))
+                                val put = new Put(Bytes.toBytes(s.mac+"#"+s.starttime+"#rzx"))
                                 put.add(Bytes.toBytes("trail"),Bytes.toBytes("trail"),
                                         Bytes.toBytes(s.devicenum+","+s.devicenum))
                                 (new ImmutableBytesWritable, put)
                               })
                     }
 
-  def stamp2Time(timeStamp:String) = {
-    try{
-      val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-		  format.format(new java.util.Date(timeStamp.toLong*1000))
-    }catch {
-      case e:Exception => timeStamp
-    }
-  }
+  // def stamp2Time(timeStamp:String) = {
+  //   try{
+  //     val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+	// 	  format.format(new java.util.Date(timeStamp.toLong*1000))
+  //   }catch {
+  //     case e:Exception => timeStamp
+  //   }
+  // }
 
 }

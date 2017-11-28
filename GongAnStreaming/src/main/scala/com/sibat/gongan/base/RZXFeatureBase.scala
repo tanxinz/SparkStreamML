@@ -1,6 +1,9 @@
 package com.sibat.gongan.base
 import com.sibat.gongan.imp.{Core,ESQueryTrait,CommonCoreTrait,IPropertiesTrait,StatusTrait}
 
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.DataFrame
+
 /****
   wifi热点特征日志
   属性名	字段长度要求	约束条件/说明
@@ -46,64 +49,89 @@ object RZXFeatureBase extends Core with ESQueryTrait with IPropertiesTrait with 
                     )
   def parseClass(arr : List[String]):Option[Any] = {
     try{
-        Some(Feature(arr(0),arr(1),arr(2),arr(3),arr(4),arr(5),arr(6),arr(7),arr(8),arr(9),arr(10),arr(11),arr(12),arr(13),arr(14),arr(15),arr(16),arr(17),
-            arr(18),arr(19),arr(20),arr(21),arr(22),arr(23),arr(24),arr(25),arr(26),arr(27)))
+        Some(Feature(arr(0),arr(1),arr(2),arr(3),arr(4),arr(5),arr(6),arr(7),arr(8),arr(9),arr(10),arr(11),arr(12),arr(13),arr(14).replace("-","")
+            ,arr(15),arr(16),arr(17),
+            arr(18),arr(19),arr(20),stamp2Time(arr(21)),arr(22),arr(23),arr(24),arr(25),arr(26),arr(27)))
         }
     catch{
             case ex:Throwable => None
         }
   }
 
+  def stamp2Time(timeStamp:String) = {
+    try{
+      val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      format.format(new java.util.Date(timeStamp.toLong*1000))
+    }catch {
+      case e:Exception => timeStamp
+    }
+  }
+
   /****
     return List
     esindex,estype,escol,esid,
   ****/
-  def Alarm(p:String):List[String] = {
-    //加上end，scala的split不会分割出最后一直为空的逗号
-    val feature = (p+",end").split(",") match {
-      case arr:Array[String] if( arr.size == 29 ) => parseClass(arr.toList) match {
-                                                                                    case Some(feature) => feature.asInstanceOf[Feature]
-                                                                                    case _ => return List(PARSEERROR)
-                                                                                  }
-      case _ => return List(PARSEERROR)
-    }
-
+  def Alarm(data:DataFrame,p:Broadcast[DataFrame]):List[String] = {
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
-    // for ((target,record) <- Map("mac" -> feature.mac,"imei" -> feature.imei,"imsi" -> feature.imsi,"phone" -> feature.phone,"account" -> feature.account)){
-      for ((target,record) <- Map("mac" -> feature.mac,"imei" -> feature.imei,"imsi" -> feature.imsi)){
-        if(!record.equals("")){
-          queryFound(PERSONALINDEX,ESTYPE,target,record) match {
-            case Some(id) => warning += List("rzx",target,record,id._1,feature.starttime,feature.devicenum,id._2).mkString(",")
-            case None =>
-        }
-      }
-    }
-    // if (warning.size != 0) {
-    //   return warning.toList
-    // }
-    //
-    // queryFound(MACINDEX,ESTYPE,"mac",feature.mac) match {
-    //   case Some(id) => warning += (List(MACINDEX,ESTYPE,"mac",id).mkString(",")+","+feature.toString)
-    //   case None =>
-    // }
-    // queryFound(IMSIINDEX,ESTYPE,"imsi",feature.imsi) match {
-    //   case Some(id) => warning += (List(IMSIINDEX,ESTYPE,"imsi",id).mkString(",")+","+feature.toString)
-    //   case None =>
-    // }
-    // queryFound(IMEIINDEX,ESTYPE,"imei",feature.imei) match {
-    //   case Some(id) => warning += (List(IMEIINDEX,ESTYPE,"imei",id).mkString(",")+","+feature.toString)
-    //   case None =>
-    // }
-    // queryFound(PHONEINDEX,ESTYPE,"phone",feature.phone) match {
-    //   case Some(id) => warning += (List(PHONEINDEX,ESTYPE,"phone",id).mkString(",")+","+feature.toString)
-    //   case None =>
-    // }
-    // queryFound(ACCOUNTINDEX,ESTYPE,"account",feature.phone) match {
-    //   case Some(id) => warning += (List(ACCOUNTINDEX,ESTYPE,"account",id).mkString(",")+","+feature.toString)
-    //   case None =>
-    // }
+
+    warning ++= InnerJoin(data,p,"mac","mac").select("mac","idno","starttime","devicenum","zdrystate").map("rzx,mac,"+_.mkString(","))
+
+    warning ++= InnerJoin(data,p,"imsi","imsi").select("imsi","idno","starttime","devicenum","zdrystate").map("rzx,imsi,"+_.mkString(","))
+
     warning.toList
   }
+
+  /****
+    return List
+    esindex,estype,escol,esid,
+  ****/
+  // def Alarm(p:String):List[String] = {
+  //   //加上end，scala的split不会分割出最后一直为空的逗号
+  //   val feature = (p+",end").split(",") match {
+  //     case arr:Array[String] if( arr.size == 29 ) => parseClass(arr.toList) match {
+  //                                                                                   case Some(feature) => feature.asInstanceOf[Feature]
+  //                                                                                   case _ => return List(PARSEERROR)
+  //                                                                                 }
+  //     case _ => return List(PARSEERROR)
+  //   }
+  //
+  //   // make sure hit the id
+  //   val warning = scala.collection.mutable.ListBuffer[String]()
+  //   // for ((target,record) <- Map("mac" -> feature.mac,"imei" -> feature.imei,"imsi" -> feature.imsi,"phone" -> feature.phone,"account" -> feature.account)){
+  //     for ((target,record) <- Map("mac" -> feature.mac,"imei" -> feature.imei,"imsi" -> feature.imsi)){
+  //       if(!record.equals("")){
+  //         queryFound(PERSONALINDEX,ESTYPE,target,record) match {
+  //           case Some(id) => warning += List("rzx",target,record,id._1,feature.starttime,feature.devicenum,id._2).mkString(",")
+  //           case None =>
+  //       }
+  //     }
+  //   }
+  //   // if (warning.size != 0) {
+  //   //   return warning.toList
+  //   // }
+  //   //
+  //   // queryFound(MACINDEX,ESTYPE,"mac",feature.mac) match {
+  //   //   case Some(id) => warning += (List(MACINDEX,ESTYPE,"mac",id).mkString(",")+","+feature.toString)
+  //   //   case None =>
+  //   // }
+  //   // queryFound(IMSIINDEX,ESTYPE,"imsi",feature.imsi) match {
+  //   //   case Some(id) => warning += (List(IMSIINDEX,ESTYPE,"imsi",id).mkString(",")+","+feature.toString)
+  //   //   case None =>
+  //   // }
+  //   // queryFound(IMEIINDEX,ESTYPE,"imei",feature.imei) match {
+  //   //   case Some(id) => warning += (List(IMEIINDEX,ESTYPE,"imei",id).mkString(",")+","+feature.toString)
+  //   //   case None =>
+  //   // }
+  //   // queryFound(PHONEINDEX,ESTYPE,"phone",feature.phone) match {
+  //   //   case Some(id) => warning += (List(PHONEINDEX,ESTYPE,"phone",id).mkString(",")+","+feature.toString)
+  //   //   case None =>
+  //   // }
+  //   // queryFound(ACCOUNTINDEX,ESTYPE,"account",feature.phone) match {
+  //   //   case Some(id) => warning += (List(ACCOUNTINDEX,ESTYPE,"account",id).mkString(",")+","+feature.toString)
+  //   //   case None =>
+  //   // }
+  //   warning.toList
+  // }
 
 }

@@ -15,7 +15,7 @@ object APPointBase extends Core{
     def trail(df:DataFrame,start:String,end:String,date:String) = {
       df.where("recieveTime > '"+start+"' and recieveTime <= '"+end+"'").rdd
               .map(arr =>{
-                val s = Point(long2Mac(arr.getString(0)),arr.getString(1),arr.getString(2),arr.getString(3),
+                val s = Point(arr.getString(0),arr.getString(1),arr.getString(2),arr.getString(3),
                               arr.getString(4),arr.getString(5),arr.getString(6),arr.getString(7),
                               arr.getString(8))
                 val put = new Put(Bytes.toBytes(s.mac+"#"+s.stime+"#ap"))
@@ -38,11 +38,11 @@ object APPointBase extends Core{
 //     		       }
 //       }
 //   }
-  def long2Mac(long:String) = {
-    try{
-      long.toLong.toHexString.toUpperCase()
-    } catch {
-      case e :Exception => long
-    }
-  }
+  // def long2Mac(long:String) = {
+  //   try{
+  //     long.toLong.toHexString.toUpperCase()
+  //   } catch {
+  //     case e :Exception => long
+  //   }
+  // }
 }

@@ -1,6 +1,9 @@
 package com.sibat.gongan.imp
 
 import org.apache.hadoop.hbase.client.Put
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.DataFrame
+import scala.collection.Seq
 
 //execute Core
 abstract class Core extends Serializable{
@@ -15,6 +18,10 @@ abstract class Core extends Serializable{
 
   def parseClass(arr : List[String]):Option[Any]
 
+
+  def InnerJoin(df1:DataFrame,df2:Broadcast[DataFrame],col1:String,col2:String) = {
+    df1.join(df2.value.where(col2+" != ''"),Seq(col1,col2),"innner")
+  }
   /**********
     make the recorder to PUT to save it to hbase soon
   **********/

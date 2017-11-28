@@ -1,7 +1,9 @@
 package com.sibat.gongan.base
 
-import com.sibat.gongan.util.EZJSONParser
 import com.sibat.gongan.imp.{Core,ESQueryTrait,CommonCoreTrait,IPropertiesTrait,StatusTrait}
+
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.DataFrame
 
 
 object SZTBase extends Core with ESQueryTrait with IPropertiesTrait with CommonCoreTrait{
@@ -19,37 +21,46 @@ object SZTBase extends Core with ESQueryTrait with IPropertiesTrait with CommonC
         }
   }
 
+  def Alarm(data:DataFrame,p:Broadcast[DataFrame]):List[String] = {
+    // make sure hit the id
+    val warning = scala.collection.mutable.ListBuffer[String]()
+
+    warning ++= InnerJoin(data,p,"cardId","szt").select("cardId","idno","tradeDate","terminal","zdrystate").map("szt,szt,"+_.mkString(","))
+
+    warning.toList
+  }
+
   /****
     return List
     esindex,estype,escol,esid,
   ****/
-  def Alarm(p:String):List[String] = {
-    //加上end，scala的split不会分割出最后一直为空的逗号
-    val szt = (p+",end").split(",") match {
-      case arr:Array[String] if( arr.size == 10 ) => parseClass(arr.toList) match {
-                                                                                    case Some(x) => x.asInstanceOf[SZT]
-                                                                                    case _ => return List(PARSEERROR)
-                                                                                  }
-      case _ => return List(PARSEERROR)
-    }
-
-    // make sure hit the id
-    val warning = scala.collection.mutable.ListBuffer[String]()
-    if(!szt.cardId.equals("")){
-      queryFound(PERSONALINDEX,ESTYPE,"szt",szt.cardId) match {
-        case Some(id) => warning += List("szt","szt",szt.cardId,id._1,szt.tradeDate,szt.terminal,id._2).mkString(",")+","+szt.toString
-        case None =>
-      }
-    }
-    // if (warning.size != 0) {
-    //   return warning.toList
-    // }
-
-    // queryFound(SZTINDEX,ESTYPE,"szt",szt.cardId) match {
-    //   case Some(id) => warning += (List(SZTINDEX,ESTYPE,"szt",id).mkString(",")+","+szt.toString)
-    //   case None =>
-    // }
-    warning.toList
-  }
+  // def Alarm(p:String):List[String] = {
+  //   //加上end，scala的split不会分割出最后一直为空的逗号
+  //   val szt = (p+",end").split(",") match {
+  //     case arr:Array[String] if( arr.size == 10 ) => parseClass(arr.toList) match {
+  //                                                                                   case Some(x) => x.asInstanceOf[SZT]
+  //                                                                                   case _ => return List(PARSEERROR)
+  //                                                                                 }
+  //     case _ => return List(PARSEERROR)
+  //   }
+  //
+  //   // make sure hit the id
+  //   val warning = scala.collection.mutable.ListBuffer[String]()
+  //   if(!szt.cardId.equals("")){
+  //     queryFound(PERSONALINDEX,ESTYPE,"szt",szt.cardId) match {
+  //       case Some(id) => warning += List("szt","szt",szt.cardId,id._1,szt.tradeDate,szt.terminal,id._2).mkString(",")+","+szt.toString
+  //       case None =>
+  //     }
+  //   }
+  //   // if (warning.size != 0) {
+  //   //   return warning.toList
+  //   // }
+  //
+  //   // queryFound(SZTINDEX,ESTYPE,"szt",szt.cardId) match {
+  //   //   case Some(id) => warning += (List(SZTINDEX,ESTYPE,"szt",id).mkString(",")+","+szt.toString)
+  //   //   case None =>
+  //   // }
+  //   warning.toList
+  // }
 
 }
