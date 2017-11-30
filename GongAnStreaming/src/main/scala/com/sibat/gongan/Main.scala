@@ -88,7 +88,8 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 
 		val todf = toDF(sqlContext)_
 
-		val warnningBase = new WarnningBase(devicestation)
+		// val warnningBase = new WarnningBase(devicestation)
+		WarnningBase.setDeviceStationMap(devicestation)
 
 		ssc.checkpoint("checkpoint")
 
@@ -139,8 +140,9 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 				rdd => if(!rdd.isEmpty){
 					val table = HBaseConnectionPool.Connection(WARNNINGTABLE)
 					for(warn:String <- rdd.map(_._2).collect()){
-							println("####################"+warn)
-							table.put(warnningBase.parse(warn))
+							println("处理预警:"+warn);
+							// table.put(warnningBase.parse(warn))
+							table.put(WarnningBase.parseToPut(devicestation,warn))
 						}
 					table.flushCommits()
 					table.close()
@@ -151,8 +153,11 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 					// 																										.option("password", "root")
 					// 																										.save()
 					// WarnningBase.toDF(sqlContext,rdd)
-					warnningBase.toDF(sqlContext,rdd).write.mode("append")
+					// warnningBase.toDF(sqlContext,rdd).write.mode("append")
+					WarnningBase.toDF(sqlContext,rdd,devicestation).write.mode("append")
         						.jdbc("jdbc:postgresql://"+POSTGRESIP+":"+POSTGRESPORT+"/"+POSTGRESDATABASE,POSTGRESTABLE,connectionProperties)
+					// WarnningBase.toDF(sqlContext,ssc.sparkContext.parallelize(warnnings)).write.mode("append")
+        	// 					.jdbc("jdbc:postgresql://"+POSTGRESIP+":"+POSTGRESPORT+"/"+POSTGRESDATABASE,POSTGRESTABLE,connectionProperties)
 				}
 			})
 			// table.close()
