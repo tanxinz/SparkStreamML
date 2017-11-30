@@ -49,8 +49,6 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 
 		val ssc = sparkStreamingInit(sc)(APPSTREAMINGSPAN.toInt)
 
-		ssc.checkpoint("checkpoint")
-
 		// 广播KafkaSink
 		val kafkaProducer: Broadcast[KafkaSink[String, String]] = ssc.sparkContext.broadcast(KafkaSink[String, String](kafkaProducerConfig(KAFKABROKERS)))
 
@@ -81,12 +79,18 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		// 				}
 		// 			}
 		// 		})
-
+		// 重点人员
 		val personal = sc.broadcast(sqlContext.read.parquet("Personal"))
+		//设备站点信息
+		val devicestation = sc.broadcast(initDeviceStation(sqlContext))
 
 		val floderandfile = getFloderAndFile
 
 		val todf = toDF(sqlContext)_
+
+		val warnningBase = new WarnningBase(devicestation)
+
+		ssc.checkpoint("checkpoint")
 
 		Try{
 			for(topic <- INPUTTOPICS.split(",")){
@@ -136,7 +140,7 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 					val table = HBaseConnectionPool.Connection(WARNNINGTABLE)
 					for(warn:String <- rdd.map(_._2).collect()){
 							println("####################"+warn)
-							table.put(WarnningBase.parse(warn))
+							table.put(warnningBase.parse(warn))
 						}
 					table.flushCommits()
 					table.close()
@@ -147,7 +151,7 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 					// 																										.option("password", "root")
 					// 																										.save()
 					// WarnningBase.toDF(sqlContext,rdd)
-					WarnningBase.toDF(sqlContext,rdd).write.mode("append")
+					warnningBase.toDF(sqlContext,rdd).write.mode("append")
         						.jdbc("jdbc:postgresql://"+POSTGRESIP+":"+POSTGRESPORT+"/"+POSTGRESDATABASE,POSTGRESTABLE,connectionProperties)
 				}
 			})
@@ -423,8 +427,18 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		}
 	}
 
-	// def initDeviceStation(sqlContext:SQLContext) = {
-	// 	for(i <- List("rzx","ty","sensordoor"))
-	// }
+	def initDeviceStation(sqlContext:SQLContext) = {
+		val map = scala.collection.mutable.Map[String,Map[String,String]]()
+		for(i <- List("rzx","ty","sensordoor")) {
+			val smap = scala.collection.mutable.Map[String,String]()
+			val temp = sqlContext.read.parquet("DeviceStation/"+i).rdd.map(_.mkString(",")).collect
+			for (ss <- temp){
+				val arr = ss.split(",")
+				smap += (arr(0) -> arr(1))
+			}
+			map += (i -> smap.toMap)
+		}
+		map.toMap
+	}
 
 }

@@ -6,7 +6,7 @@ import com.sibat.gongan.imp.HBaseActionTrait
 class WarnningAction extends HBaseActionTrait{
 
   // 厂商名，数据名（szt/mac/idno），数据id，id唯一标识（指的是es的id），设备编号，预警级别
-  case class Warnning(stype:String,datatype:String,dataid:String,id:String,time:String,deviceId:String,important:String)
+  case class Warnning(stype:String,datatype:String,dataid:String,id:String,time:String,deviceId:String,important:String,station:String)
 
   override def format(arrlist:List[List[Map[String,String]]]) = {
     val res = new scala.collection.mutable.ListBuffer[Warnning]()
@@ -14,7 +14,7 @@ class WarnningAction extends HBaseActionTrait{
       for(i <- arr){
           val row = i("row").split("#");
           val value = i("value").split(",")
-          res += Warnning(value(0),row(1),row(2),row(4),row(0),row(3),value(1))
+          res += Warnning(value(0),row(1),row(2),row(4),row(0),value(2),value(1),row(3))
       }
     }
     res.toList
@@ -27,7 +27,7 @@ class WarnningAction extends HBaseActionTrait{
       import scala.collection.mutable.Map
       val rr = Map[String,Map[String,Int]]()
       for(i <- format(res)){
-        val station = queryStation(i.stype,i.datatype,i.deviceId)
+        val station = i.station
         i.important match {
           case "12" => {
             if(rr.contains("focus")){
@@ -143,9 +143,11 @@ val sourcetypes = Map("rzx"->"WIFI热点","ap"->"AP定位","sensordoor" -> "感�
       for(i <- arr){
           val row = i("row").split("#");
           val value = i("value").split(",")
-          value match {
-            case Array(_,_) => res += NowJson(sourcetypes(value(0)),row(1),row(2),row(4),row(0),row(3),value(1),queryStation(value(0),row(1),row(3)))
-            case _ => res += NowJson(sourcetypes(value(0)),row(1),row(2),row(4),row(0),row(3),value(1),queryStation(value(0),row(1),row(3)),value(2))
+          value(0) match {
+            case "sensordoor" => res += NowJson(sourcetypes(value(0)),row(1),row(2),row(4),row(0),value(2),value(1),row(3),value(3))
+            case _ => res += NowJson(sourcetypes(value(0)),row(1),row(2),row(4),row(0),value(2),value(1),row(3))
+            // case Array(_,_) => res += NowJson(sourcetypes(value(0)),row(1),row(2),row(4),row(0),row(3),value(1),queryStation(value(0),row(1),row(3)))
+            // case _ => res += NowJson(sourcetypes(value(0)),row(1),row(2),row(4),row(0),row(3),value(1),queryStation(value(0),row(1),row(3)),value(2))
           }
       }
     }
