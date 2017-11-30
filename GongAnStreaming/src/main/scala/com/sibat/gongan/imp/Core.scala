@@ -20,7 +20,8 @@ abstract class Core extends Serializable{
 
 
   def InnerJoin(df1:DataFrame,df2:Broadcast[DataFrame],col1:String,col2:String) = {
-    df1.join(df2.value.where(col2+" != ''"),Seq(col1,col2),"innner")
+    val df2w = df2.value.where(col2+" != ''")
+    df1.join(df2w,(df1(col1) === df2w(col2)),"inner")
   }
   /**********
     make the recorder to PUT to save it to hbase soon

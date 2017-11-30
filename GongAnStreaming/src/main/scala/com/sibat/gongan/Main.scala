@@ -115,10 +115,11 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 										println(rdd.count())
 										//存储rdd为parquet
 										val df = todf(topic,rdd.map(_._2.toString))
-										val alarm = Alarm(df,personal)
-										if(alarm.size != 0 ){
+										val alarm = Alarm(topic,df,personal)
+										if((alarm != null )&&(alarm.size != 0 )){
 											for (i <- alarm) kafkaProducer.value.send(WARNTEMPTOPICS, topic + ","+ i)
 										}
+										println("!!!!!"+floderandfile._1+")))"+topic)
 										topic match {
 											case "trail" => df.write.mode(SaveMode.Append).parquet("GongAn/rzx_"+topic+"/"+floderandfile._1)
 											case _ => df.write.mode(SaveMode.Append).parquet("GongAn/"+topic+"/"+floderandfile._1)
@@ -421,5 +422,9 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 			case _ => return null
 		}
 	}
+
+	// def initDeviceStation(sqlContext:SQLContext) = {
+	// 	for(i <- List("rzx","ty","sensordoor"))
+	// }
 
 }

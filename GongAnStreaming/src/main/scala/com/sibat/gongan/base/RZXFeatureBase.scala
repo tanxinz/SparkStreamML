@@ -75,9 +75,9 @@ object RZXFeatureBase extends Core with ESQueryTrait with IPropertiesTrait with 
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
 
-    warning ++= InnerJoin(data,p,"mac","mac").select("mac","idno","starttime","devicenum","zdrystate").map("rzx,mac,"+_.mkString(","))
+    warning ++= InnerJoin(data,p,"mac","mac").select(p.value("mac"),p.value("idno"),data("starttime"),data("devicenum"),p.value("zdrystate"),data("xpoint"),data("ypoint")).rdd.map("rzx,mac,"+ _.mkString(",")).collect
 
-    warning ++= InnerJoin(data,p,"imsi","imsi").select("imsi","idno","starttime","devicenum","zdrystate").map("rzx,imsi,"+_.mkString(","))
+    warning ++= InnerJoin(data,p,"imsi","imsi").select(p.value("imsi"),p.value("idno"),data("starttime"),data("devicenum"),p.value("zdrystate"),data("xpoint"),data("ypoint")).rdd.map("rzx,imsi,"+ _.mkString(",")).collect
 
     warning.toList
   }

@@ -32,7 +32,7 @@ object APPointBase extends Core with ESQueryTrait with IPropertiesTrait with Com
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
 
-    warning ++= InnerJoin(data,p,"mac","mac").select("mac","idno","time","apid","zdrystate","bid").map("ap,mac,"+_.mkString(","))
+    warning ++= InnerJoin(data,p,"mac","mac").select(p.value("mac"),p.value("idno"),data("stime"),data("apid"),p.value("zdrystate"),data("bid")).rdd.map("ap,mac,"+_.mkString(",")).collect
 
     warning.toList
   }

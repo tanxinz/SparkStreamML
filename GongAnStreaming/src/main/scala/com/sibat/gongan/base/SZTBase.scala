@@ -25,7 +25,7 @@ object SZTBase extends Core with ESQueryTrait with IPropertiesTrait with CommonC
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
 
-    warning ++= InnerJoin(data,p,"cardId","szt").select("cardId","idno","tradeDate","terminal","zdrystate").map("szt,szt,"+_.mkString(","))
+    warning ++= InnerJoin(data,p,"cardId","szt").select(data("cardId"),p.value("idno"),data("tradeDate"),data("terminal"),p.value("zdrystate"),data("tradeAddress")).rdd.map("szt,szt,"+_.mkString(",")).collect
 
     warning.toList
   }

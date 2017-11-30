@@ -14,11 +14,11 @@ object SensorIdcardBase extends Core with ESQueryTrait with IPropertiesTrait wit
   case class Idcard(mac:java.lang.String,genId:java.lang.String,timeStamp:java.lang.String,idno:java.lang.String,name:java.lang.String
                     ,sexCode:java.lang.String,nationCode:java.lang.String,
                     birth:java.lang.String,addr:java.lang.String,authority:java.lang.String,validBegin:java.lang.String
-                    ,validEnd:java.lang.String,face:java.lang.String,recieveTime:java.lang.String)
+                    ,validEnd:java.lang.String,recieveTime:java.lang.String)
 
   def parseClass(arr : List[String]):Option[Any] = {
     try{
-      Some(Idcard(arr(0),arr(1),arr(2),arr(3),arr(4),arr(5),arr(6),arr(7),arr(8),arr(9),arr(10),arr(11),arr(12),arr(13)))
+      Some(Idcard(arr(0),arr(1),arr(2),arr(3),arr(4),arr(5),arr(6),arr(7),arr(8),arr(9),arr(10),arr(11),arr(12)))
     }catch{
       case ex:Throwable => None
     }
@@ -28,7 +28,7 @@ object SensorIdcardBase extends Core with ESQueryTrait with IPropertiesTrait wit
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
 
-    warning ++= InnerJoin(data,p,"idno","idno").select("idno","idno","timeStamp","mac","zdrystate","genId").map("sensordoor,idno,"+_.mkString(","))
+    warning ++= InnerJoin(data,p,"idno","idno").select(p.value("idno"),p.value("idno"),data("timeStamp"),data("mac"),p.value("zdrystate"),data("genId")).rdd.map("sensordoor,idno,"+_.mkString(",")).collect
 
     warning.toList
   }

@@ -14,7 +14,7 @@ object TYIMSIBase extends Core with ESQueryTrait with IPropertiesTrait with Comm
 
   def parseClass(arr : List[String]):Option[Any] = {
     try{
-      Some(IMSI(arr(0),arr(1),arr(2),arr(3),arr(4),arr(5)))
+      Some(IMSI(arr(0),stamp2Time(arr(1)),arr(2),arr(3),arr(4),arr(5)))
     }catch{
       case ex:Throwable=> None
     }
@@ -24,9 +24,18 @@ object TYIMSIBase extends Core with ESQueryTrait with IPropertiesTrait with Comm
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
 
-    warning ++= InnerJoin(data,p,"imsi","imsi").select("imsi","idno","time","deviceId","zdrystate").map("ty,imsi,"+_.mkString(","))
+    warning ++= InnerJoin(data,p,"imsi","imsi").select(p.value("imsi"),p.value("idno"),data("time"),data("deviceId"),p.value("zdrystate")).rdd.map("ty,imsi,"+_.mkString(",")).collect
 
     warning.toList
+  }
+
+  def stamp2Time(timeStamp:String) = {
+    try{
+      val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      format.format(new java.util.Date(timeStamp.toLong*1000))
+    }catch {
+      case e:Exception => timeStamp
+    }
   }
 
   // def Alarm(p:String):List[String] = {
