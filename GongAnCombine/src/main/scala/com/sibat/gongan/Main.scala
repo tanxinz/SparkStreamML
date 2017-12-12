@@ -34,11 +34,11 @@ object Main  extends IPropertiesTrait{
 
 		val sqlContext:SQLContext = new SQLContext(sc)
 
-		val topics = INPUTTOPICS.split(",")
-		// sc.setLogLevel("WARN")
-		val trailDFs = List("rzx_feature","sensordoor_idcard","ap_point","ty_imsi",
-												"ty_mac","ajm_4g","ajm_wifi","ajm_account",
-												"ajm_idcard","szt")
+		// val topics = INPUTTOPICS.split(",")
+		// // sc.setLogLevel("WARN")
+		// val trailDFs = List("rzx_feature","sensordoor_idcard","ap_point","ty_imsi",
+		// 										"ty_mac","ajm_4g","ajm_wifi","ajm_account",
+		// 										"ajm_idcard","szt")
 
 
 
@@ -71,7 +71,20 @@ object Main  extends IPropertiesTrait{
 		// airportsRDD.saveToEsWithMeta("airports/2015")
 
 		// 时空碰撞
-		
+		val datapath = "GongAnRealData"
+		val date = args(1)
+		val idno = IDNOBase.getDF(sqlContext,date,datapath)
+		val mac = MACBase.getDF(sqlContext,date,datapath)
+		val imsi = IMSIBase.getDF(sqlContext,date,datapath)
+		val macimsi = RelationBase.CalcuteSameTime(mac,imsi,"mactime","imsitime","mac","imsi","macstation","imsistation")
+															.groupBy("mac","imsi").count
+		val macidno = RelationBase.CalcuteSameTime(mac,idno,"mactime","idnotime","mac","idno","macstation","idnostation")
+															.groupBy("mac","idno").count
+		val idnoimsi = RelationBase.CalcuteSameTime(idno,imsi,"idnotime","imsitime","idno","imsi","idnostation","imsistation")
+															.groupBy("idno","imsi").count
+		macimsi.write.parquet("Combine/macimsi/"+date)
+		macidno.write.parquet("Combine/macidno/"+date)
+		idnoimsi.write.parquet("Combine/idnoimsi/"+date)
 
 		sc.stop()
 	}
