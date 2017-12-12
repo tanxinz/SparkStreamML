@@ -42,7 +42,7 @@ object Main  extends IPropertiesTrait{
 
 
 
-		PersonalBase.getDS(sqlContext).write.parquet("personal")
+		// PersonalBase.getDS(sqlContext).write.parquet("personal")
 		// val personal = sqlContext.read.parquet("PersonalMacImsiSzt")
 		// EsSpark.saveToEs(PersonalBase.getDS(sqlContext).rdd, "personal/docs",Map("es.mapping.id" -> "idno"))
 		// EsSpark.saveToEs(personal.rdd.map(_.mkString(",")).map(PersonalBase.testParse(_)), "personal/docs",Map("es.mapping.id" -> "idno"))
@@ -69,6 +69,10 @@ object Main  extends IPropertiesTrait{
 		//
 		// val airportsRDD = sc.makeRDD(Seq((1, otp), (2, muc), (3, sfo)))
 		// airportsRDD.saveToEsWithMeta("airports/2015")
+
+		// 时空碰撞
+		
+
 		sc.stop()
 	}
 

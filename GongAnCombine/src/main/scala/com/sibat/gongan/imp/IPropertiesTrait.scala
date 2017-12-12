@@ -63,4 +63,6 @@ trait IPropertiesTrait {
 
   def POSTGRESPASSWD = GET("PostgresPasswd")
 
+  def CLOSETIME = GET("closeTime")
+
 }
