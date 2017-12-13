@@ -7,11 +7,6 @@ import com.sibat.gongan.imp.Core
 //
 object TYIMSIBase extends Core {
 //
-  def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
-    val location = sqlContext.read.parquet("DeviceStation/rzx_feature")
-    val df = sqlContext.read.parquet(datapath+"/ty_imsi/"+date).drop("station")
-    df.join(location,Seq("deviceId"),"inner").withColumnRenamed("station","rzxstation")
-  }
 //   case class IMSI(deviceId:java.lang.String,time:java.lang.String,imsi:java.lang.String,imei:java.lang.String,location:java.lang.String,recieveTime:java.lang.String)
 //
 //   def parseClass(arr : List[String]):Option[Any] = {

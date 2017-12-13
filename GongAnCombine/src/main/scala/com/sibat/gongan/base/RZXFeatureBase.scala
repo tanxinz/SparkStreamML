@@ -39,12 +39,6 @@ CONSULT_YPOINT	VARCHAR(8)	WIFI终端相对采集设备的Y坐标(正北方向)�
 
 object RZXFeatureBase extends Core {
 
-  def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
-    val location = sqlContext.read.parquet("DeviceStation/rzx_feature")
-    val df = sqlContext.read.parquet(datapath+"/rzx_feature/"+date).drop("station")
-    df.join(location,Seq("devicenum"),"inner").withColumnRenamed("station","rzxstation")
-  }
-
   // case class Feature(account:java.lang.String,apchannel:java.lang.String,apencartype:java.lang.String,bssid:java.lang.String,companyid:java.lang.String
   //                   ,consultxpoint:java.lang.String,consultypoint:java.lang.String,
   //                     devicenum:java.lang.String,devmac:java.lang.String,endtime:java.lang.String,essid:java.lang.String,historyessid:java.lang.String
