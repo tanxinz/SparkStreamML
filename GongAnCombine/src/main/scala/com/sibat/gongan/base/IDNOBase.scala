@@ -5,7 +5,7 @@ import scala.collection.Seq
 
 object IDNOBase {
   def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
-    val sensordoor = subDF(sqlContext,datapath+"/sensordoor_idcard/"+date,"DeviceStation/sensordoor_idcard","mac")
+    val sensordoor = subDF(sqlContext,datapath+"/sensordoor_idcard/"+date,"DeviceStation/sensordoor","mac")
               .withColumnRenamed("recieveTime","idnotime").withColumnRenamed("station","idnostation")
     sensordoor.select("idno","idnostation","idnotime").filter("idno != 'null'")
   }

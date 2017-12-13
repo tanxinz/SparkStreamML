@@ -5,7 +5,7 @@ import scala.collection.Seq
 
 object MACBase {
   def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
-    val rzx = subDF(sqlContext,datapath+"/rzx_feature/"+date,"DeviceStation/rzx_feature","devicenum")
+    val rzx = subDF(sqlContext,datapath+"/rzx_feature/"+date,"DeviceStation/rzx","devicenum")
               .withColumnRenamed("starttime","mactime").withColumnRenamed("station","macstation")
     val ap = sqlContext.read.parquet(datapath+"/ap_point/"+date).withColumnRenamed("bid","macstation")
               .withColumnRenamed("stime","mactime")

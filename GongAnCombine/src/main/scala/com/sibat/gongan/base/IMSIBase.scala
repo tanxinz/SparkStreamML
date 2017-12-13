@@ -5,7 +5,7 @@ import scala.collection.Seq
 
 object IMSIBase  {
   def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
-    val ty = subDF(sqlContext,datapath+"/ty_imsi/"+date,"DeviceStation/ty_imsi","deviceId")
+    val ty = subDF(sqlContext,datapath+"/ty_imsi/"+date,"DeviceStation/ty","deviceId")
               .withColumnRenamed("time","imsitime").withColumnRenamed("station","imsistation")
     ty.select("imsi","imsistation","imsitime").filter("imsi != 'null'")
   }
