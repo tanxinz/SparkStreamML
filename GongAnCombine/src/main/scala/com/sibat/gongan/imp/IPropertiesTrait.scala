@@ -65,4 +65,6 @@ trait IPropertiesTrait {
 
   def CLOSETIME = GET("closeTime")
 
+  def HISTORYATTENUATION = GET("historyAttenuation")
+
 }

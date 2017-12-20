@@ -3,12 +3,14 @@ package com.sibat.gongan.base
 import com.sibat.gongan.util.EZJSONParser
 import com.sibat.gongan.imp.{Core,ESQueryTrait,IPropertiesTrait}
 import java.util.Properties
+import scala.util.{Try,Failure,Success}
 import org.apache.spark.sql.{SQLContext,DataFrame}
-import org.apache.spark.sql.functions.col
+import org.apache.spark.sql.functions.{col,sum}
 
 import com.sibat.gongan.util.TimeDistance
+import com.sibat.gongan.imp.IPropertiesTrait
 
-object RelationBase {
+object RelationBase extends IPropertiesTrait{
 
   // def calculationDistance(df1:DataFrame,df2:DataFrame) = {
   //   df1.join(df2,Seq(""),"outter")
@@ -21,8 +23,31 @@ object RelationBase {
     val all = df1s.join(df2s,Seq("date"),"inner")
                   .select(df1s(col1),df2s(col2),df1s(locationcol1),df1s(time1),df2s(locationcol2),df2s(time2))
                   .filter(arr => TimeDistance.filter(arr.getString(3),arr.getString(5)))
-    (all.filter(arr => arr.getString(2) == arr.getString(4)).groupBy(col1,col2).count,
-     all.filter(arr => arr.getString(2) != arr.getString(4)).groupBy(col1,col2).count)
+    (all.filter(arr => arr.getString(2) == arr.getString(4)).groupBy(col1,col2).count.withColumn("count",col("count") * 1.0),
+     all.filter(arr => arr.getString(2) != arr.getString(4)).groupBy(col1,col2).count.withColumn("count",col("count") * 1.0))
+  }
+
+
+  /***
+  stype:融合的数据类型
+  dtype:同时同站还是同时不同站
+  ***/
+  def MergeHistory(sqlContext:SQLContext)(df:DataFrame,stype:String,dtype:String,combineid1:String,combineid2:String):DataFrame = {
+    ReadHistory(sqlContext,stype,dtype) match {
+      case x:DataFrame => x.withColumn("count",col("count") * HISTORYATTENUATION.toDouble).union(df).
+                            groupBy(combineid1,combineid2).agg(sum("count").alias("count"))
+      case None => df
+    }
+  }
+
+  private def ReadHistory(sqlContext:SQLContext,stype:String,dtype:String) = {
+    Try {
+      sqlContext.read.parquet("Combine/"+dtype+"/"+ stype)
+    } match {
+      case Failure(_) => None
+      case Success(x) => x.asInstanceOf[DataFrame]
+    }
+
   }
 
 }

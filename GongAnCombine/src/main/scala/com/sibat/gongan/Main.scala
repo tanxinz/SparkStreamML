@@ -79,12 +79,24 @@ object Main  extends IPropertiesTrait{
 		val macimsi = RelationBase.CalcuteSameTime(mac,imsi,"mactime","imsitime","mac","imsi","macstation","imsistation")
 		val macidno = RelationBase.CalcuteSameTime(mac,idno,"mactime","idnotime","mac","idno","macstation","idnostation")
 		val idnoimsi = RelationBase.CalcuteSameTime(idno,imsi,"idnotime","imsitime","idno","imsi","idnostation","imsistation")
-		macimsi._1.write.parquet("Combine/macimsi/"+date)
-		macidno._1.write.parquet("Combine/macidno/"+date)
-		idnoimsi._1.write.parquet("Combine/idnoimsi/"+date)
+
+		val merge = RelationBase.MergeHistory(sqlContext)_
+		val samestation="SameStation"
+		val diffstation="DiffStation"
+		merge(macimsi._1,"macimsi",samestation,"mac","imsi").write.mode(SaveMode.Append).parquet("Combine/"+samestation+"/macimsi")
+		merge(macimsi._2,"macimsi",diffstation,"mac","imsi").write.mode(SaveMode.Append).parquet("Combine/"+diffstation+"/macimsi")
+		merge(macidno._1,"macidno",samestation,"mac","idno").write.mode(SaveMode.Append).parquet("Combine/"+samestation+"/macidno")
+		merge(macidno._2,"macidno",diffstation,"mac","idno").write.mode(SaveMode.Append).parquet("Combine/"+diffstation+"/macidno")
+		merge(idnoimsi._1,"idnoimsi",samestation,"idno","imsi").write.mode(SaveMode.Append).parquet("Combine/"+samestation+"/idnoimsi")
+		merge(idnoimsi._2,"idnoimsi",diffstation,"idno","imsi").write.mode(SaveMode.Append).parquet("Combine/"+diffstation+"/idnoimsi")
 
 		sc.stop()
 	}
+
+	// def combineAndMerge(sqlContext:SQLContext,datapath:String,date:String,
+																		// merge:(DataFrame,String,String,String) => DataFrame)
+																		// (stype:String) = {
+	// }
 
 	def getYesterDay() = {
 		val timeformat = new java.text.SimpleDateFormat("yyyyMMdd")

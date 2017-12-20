@@ -84,7 +84,8 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		//设备站点信息
 		val devicestation = sc.broadcast(initDeviceStation(sqlContext))
 
-		val floderandfile = getFloderAndFile
+		//不能放在这里，这样只有初始化的时候会生成日期，做不到每天动态生成文件夹
+		// val floderandfile = getFloderAndFile
 
 		val todf = toDF(sqlContext)_
 
@@ -119,6 +120,7 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 										println("-------------------------------------------------")
 										println(rdd.count())
 										//存储rdd为parquet
+										val floderandfile = getFloderAndFile
 										val df = todf(topic,rdd.map(_._2.toString))
 										val alarm = Alarm(topic,df,personal)
 										if((alarm != null )&&(alarm.size != 0 )){
