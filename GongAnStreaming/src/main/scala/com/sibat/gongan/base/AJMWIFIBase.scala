@@ -3,6 +3,8 @@ package com.sibat.gongan.base
 import com.sibat.gongan.util.EZJSONParser
 import com.sibat.gongan.imp.{Core,ESQueryTrait,CommonCoreTrait,IPropertiesTrait,StatusTrait}
 
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.DataFrame
 
 object AJMWIFIBase extends Core with ESQueryTrait with IPropertiesTrait with CommonCoreTrait{
 
@@ -12,7 +14,7 @@ object AJMWIFIBase extends Core with ESQueryTrait with IPropertiesTrait with Com
 
   def parseClass(arr : List[String]):Option[Any] = {
     try{
-        Some(WIFI(arr(0),arr(1),arr(2),arr(3),arr(4),arr(5),arr(6),arr(7),arr(8),arr(9)))
+        Some(WIFI(arr(0),stamp2Time(arr(1)),arr(2),arr(3),arr(4),arr(5),arr(6),arr(7),arr(8),arr(9)))
         }
     catch{
             case ex:Throwable => None
@@ -23,31 +25,22 @@ object AJMWIFIBase extends Core with ESQueryTrait with IPropertiesTrait with Com
     return List
     esindex,estype,escol,esid,
   ****/
-  def Alarm(p:String):List[String] = {
-    //加上end，scala的split不会分割出最后一直为空的逗号
-    val wifi = (p+",end").split(",") match {
-      case arr:Array[String] if( arr.size == 11 ) => parseClass(arr.toList) match {
-                                                                                    case Some(wifi) => wifi.asInstanceOf[WIFI]
-                                                                                    case _ => return List(PARSEERROR)
-                                                                                  }
-      case _ => return List(PARSEERROR)
-    }
-
+  def Alarm(data:DataFrame,p:Broadcast[DataFrame]):List[String] = {
     // make sure hit the id
     val warning = scala.collection.mutable.ListBuffer[String]()
-    queryFound(PERSONALINDEX,ESTYPE,"mac",wifi.device_mac) match {
-      case Some(id) => warning += List("ajm","mac",wifi.device_mac,id._1,wifi.cap_time,wifi.term_mac,id._2).mkString(",")
-      case None =>
-    }
-    // if (warning.size != 0) {
-    //   return warning.toList
-    // }
-    //
-    // queryFound(MACINDEX,ESTYPE,"mac",wifi.device_mac) match {
-    //   case Some(id) => warning += (List(MACINDEX,ESTYPE,"mac",id).mkString(",")+","+wifi.toString)
-    //   case None =>
-    // }
+
+    warning ++= InnerJoin(data,p,"term_mac","mac").select(p.value("mac"),p.value("idno"),data("cap_time"),data("device_mac"),p.value("zdrystate")).rdd.map("ajm,mac,"+_.mkString(",")).collect
+
     warning.toList
+  }
+
+  def stamp2Time(timeStamp:String) = {
+    try{
+      val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      format.format(new java.util.Date(timeStamp.toLong))
+    }catch {
+      case e:Exception => timeStamp
+    }
   }
 
 }

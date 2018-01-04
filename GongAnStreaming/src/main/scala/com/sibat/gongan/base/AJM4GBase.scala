@@ -3,6 +3,9 @@ package com.sibat.gongan.base
 import com.sibat.gongan.util.EZJSONParser
 import com.sibat.gongan.imp.{Core,ESQueryTrait,CommonCoreTrait,IPropertiesTrait,StatusTrait}
 
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.sql.DataFrame
+
 
 object AJM4GBase extends Core with ESQueryTrait with IPropertiesTrait with CommonCoreTrait{
 
@@ -10,7 +13,7 @@ object AJM4GBase extends Core with ESQueryTrait with IPropertiesTrait with Commo
 
   def parseClass(arr : List[String]):Option[Any] = {
     try{
-        Some(A4G(arr(0),arr(1),arr(2),arr(3)))
+        Some(A4G(arr(0),arr(1),stamp2Time(arr(2)),arr(3)))
         }
     catch{
             case ex:Throwable => None
@@ -21,31 +24,22 @@ object AJM4GBase extends Core with ESQueryTrait with IPropertiesTrait with Commo
     return List
     esindex,estype,escol,esid,
   ****/
-  def Alarm(p:String):List[String] = {
-    //加上end，scala的split不会分割出最后一直为空的逗号
-    val a4g = (p+",end").split(",") match {
-      case arr:Array[String] if( arr.size == 5 ) => parseClass(arr.toList) match {
-                                                                                    case Some(a4g) => a4g.asInstanceOf[A4G]
-                                                                                    case _ => return List(PARSEERROR)
-                                                                                  }
-      case _ => return List(PARSEERROR)
+    def Alarm(data:DataFrame,p:Broadcast[DataFrame]):List[String] = {
+      // make sure hit the id
+      val warning = scala.collection.mutable.ListBuffer[String]()
+
+      warning ++= InnerJoin(data,p,"imsi","imsi").select(p.value("imsi"),p.value("idno"),data("cap_time"),data("lte_dev_code"),p.value("zdrystate")).rdd.map("ajm,imsi,"+_.mkString(",")).collect
+
+      warning.toList
     }
 
-    // make sure hit the id
-    val warning = scala.collection.mutable.ListBuffer[String]()
-    queryFound(PERSONALINDEX,ESTYPE,"imsi",a4g.imsi) match {
-      case Some(id) => warning += List("ajm","imsi",a4g.imsi,id._1,a4g.cap_time,a4g.lte_dev_code,id._2).mkString(",")
-      case None =>
+  def stamp2Time(timeStamp:String) = {
+    try{
+      val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      format.format(new java.util.Date(timeStamp.toLong))
+    }catch {
+      case e:Exception => timeStamp
     }
-    // if (warning.size != 0) {
-    //   return warning.toList
-    // }
-    //
-    // queryFound(IMSIINDEX,ESTYPE,"imsi",a4g.imsi) match {
-    //   case Some(id) => warning += (List(IMSIINDEX,ESTYPE,"imsi",id).mkString(",")+","+a4g.toString)
-    //   case None =>
-    // }
-    warning.toList
   }
 
 }

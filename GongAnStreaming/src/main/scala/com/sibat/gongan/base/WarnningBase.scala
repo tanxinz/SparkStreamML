@@ -41,6 +41,7 @@ object WarnningBase extends ESQueryTrait with IPropertiesTrait with CommonCoreTr
       case "sensordoor" => Warnning(data(1),data(2),data(3),data(4),data(5),data(6),data(7),data(8),queryStation(data(1),data(6)))
       case "szt" => Warnning(data(1),data(2),data(3),data(4),data(5),data(6),data(7),"",data(8))
       case "ty" => Warnning(data(1),data(2),data(3),data(4),data(5),data(6),data(7),"",queryStation(data(1),data(6)))
+      case "ajm" => Warnning(data(1),data(2),data(3),data(4),data(5),data(6),data(7),"",queryStation(data(1),data(6)))
       case _ => Warnning("","","","","","","","")
     }
   }

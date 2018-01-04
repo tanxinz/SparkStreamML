@@ -436,7 +436,7 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 
 	def initDeviceStation(sqlContext:SQLContext) = {
 		val map = scala.collection.mutable.Map[String,Map[String,String]]()
-		for(i <- List("rzx","ty","sensordoor")) {
+		for(i <- List("rzx","ty","sensordoor","ajm")) {
 			val smap = scala.collection.mutable.Map[String,String]()
 			val temp = sqlContext.read.parquet("DeviceStation/"+i).rdd.map(_.mkString(",")).collect
 			for (ss <- temp){
