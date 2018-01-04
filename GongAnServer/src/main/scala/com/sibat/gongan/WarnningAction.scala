@@ -135,7 +135,7 @@ class WarnningAction extends HBaseActionTrait{
     else halt(404,"Not Found!!")
   }
 
-val sourcetypes = Map("rzx"->"WIFI热点","ap"->"AP定位","sensordoor" -> "感知门","ty"->"电子围栏","szt" -> "深圳通","ifass" -> "人脸识别")
+val sourcetypes = Map("rzx"->"WIFI热点","ap"->"AP定位","sensordoor" -> "感知门","ty"->"电子围栏","szt" -> "深圳通","ifass" -> "人脸识别","ajm" -> "安检门")
  case class NowJson(source:String,datatype:String,dataid:String,id:String,time:String,deviceId:String,stype:String,station:String,photoPath:String="")
  def nowjsonformat(arrlist:List[List[Map[String,String]]]) = {
     val res = new scala.collection.mutable.ListBuffer[NowJson]()
