@@ -4,6 +4,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.broadcast.Broadcast
 
 import com.sibat.gongan.imp.Core
 
@@ -52,7 +53,7 @@ object RZXFeatureBase extends Core {
                     )
 
 
-                    def trail(df:DataFrame,start:String,end:String,date:String) = {
+                    def trail(df:DataFrame,start:String,end:String,date:String,devicestation:Broadcast[Map[String,Map[String,String]]]) = {
                       df.where("recieveTime > '"+start+"' and recieveTime <= '"+end+"'").rdd
                               .map(arr =>{
                                 val s = Feature(arr.getString(0),arr.getString(1),arr.getString(2),arr.getString(3),
@@ -64,7 +65,7 @@ object RZXFeatureBase extends Core {
                                               arr.getString(24),arr.getString(25),arr.getString(26),arr.getString(27))
                                 val put = new Put(Bytes.toBytes(s.mac+"#"+s.starttime+"#rzx"))
                                 put.add(Bytes.toBytes("trail"),Bytes.toBytes("trail"),
-                                        Bytes.toBytes(s.devicenum+","+s.devicenum))
+                                        Bytes.toBytes(devicestation.value("rzx")(s.devicenum)+","+s.devicenum))
                                 (new ImmutableBytesWritable, put)
                               })
                     }

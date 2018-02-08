@@ -4,6 +4,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.broadcast.Broadcast
 
 import com.sibat.gongan.imp.Core
 
@@ -15,7 +16,7 @@ object SensorIdcardBase extends Core {
                     ,validEnd:java.lang.String,face:java.lang.String,recieveTime:java.lang.String)
 
 
-                    def trail(df:DataFrame,start:String,end:String,date:String) = {
+                    def trail(df:DataFrame,start:String,end:String,date:String,devicestation:Broadcast[Map[String,Map[String,String]]]) = {
                       df.where("recieveTime > '"+start+"' and recieveTime <= '"+end+"'").rdd
                               .map(arr =>{
                                 val s = Idcard(arr.getString(0),arr.getString(1),stamp2Time(arr.getString(2)),arr.getString(3),
@@ -24,7 +25,7 @@ object SensorIdcardBase extends Core {
                                               arr.getString(12),arr.getString(13))
                                 val put = new Put(Bytes.toBytes(s.idno+"#"+s.timeStamp+"#sensordoor"))
                                 put.add(Bytes.toBytes("trail"),Bytes.toBytes("trail"),
-                                          Bytes.toBytes(s.mac+","+s.mac+","+s.genId))
+                                          Bytes.toBytes(devicestation.value("sensordoor")(s.mac)+","+s.mac+","+s.genId))
                                 (new ImmutableBytesWritable, put)
                               })
                     }

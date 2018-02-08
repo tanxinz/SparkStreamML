@@ -8,6 +8,7 @@ import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.spark.sql.SQLContext
+import org.apache.spark.broadcast.Broadcast
 
 import com.sibat.gongan.imp.Core
 
@@ -44,7 +45,7 @@ object SZTBase extends Core{
   //     }
   // }
 
-  def trail(df:DataFrame,start:String,end:String,date:String) = {
+  def trail(df:DataFrame,start:String,end:String,date:String,devicestation:Broadcast[Map[String,Map[String,String]]]) = {
     df.where("recieveDate >= '"+start+"' and recieveDate <= '"+end+"'").rdd
             .map(
               arr => {

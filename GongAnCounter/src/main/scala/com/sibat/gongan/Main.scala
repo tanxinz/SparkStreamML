@@ -58,19 +58,22 @@ object Main extends IPropertiesTrait {
 		//sql 生成
 		val sqlContext:SQLContext = new SQLContext(sc)
 
+		//设备站点信息
+		val devicestation = sc.broadcast(initDeviceStation(sqlContext))
+
 		// val szt = sqlContext.read.parquet("szt/"+getFloderAndFile+"/*")
 		// val rdd = SZTBase.SZT(szt)
 		val times = getTimes()
 
-		val save = save2Hbase(sc,sqlContext,times)_
+		val save = save2Hbase(sc,sqlContext,times,devicestation)_
 		// save(TYMACBase,TYMACTABLENAME)
-		save(TYIMSIBase,TYIMSITABLENAME)
+		save(TYIMSIBase,MACTABLENAME)
 		save(SZTBase,SZTTABLENAME)
 		// save(AJM4GBase,AJM4GTABLE)
 		// save(AJMWIFIBase,AJMWIFITABLE)
 		// save(AJMAccountBase,AJMACCOUNTTABLE)
-		save(APPointBase,APPOINTTABLE)
-		save(RZXFeatureBase,RZXFEATURETABLE)
+		save(APPointBase,MACTABLE)
+		save(RZXFeatureBase,IDNOTABLE)
 		// save(SensorIdcardBase,SENSORDOORIDCARDTABLE)
 
 		Try{
@@ -121,10 +124,14 @@ object Main extends IPropertiesTrait {
 		}
 	}
 
-	def save2Hbase(sc:SparkContext,sqlContext:SQLContext,times:Tuple3[String,String,String])(base:Core,tablename:String) = {
+	/**
+	 * 保存轨迹
+	**/
+	def save2Hbase(sc:SparkContext,sqlContext:SQLContext,times:Tuple3[String,String,String],devicestation:Broadcast[Map[String,Map[String,String]]])
+								(base:Core,tablename:String) = {
 		Try{
 			val data = sqlContext.read.parquet("/user/hadoop/GongAn/"+tablename+"/"+times._1)
-			val rdd = base.trail(data,times._3,times._2,times._1)
+			val rdd = base.trail(data,times._3,times._2,times._1,devicestation)
 			sc.hadoopConfiguration.set(TableOutputFormat.OUTPUT_TABLE, tablename)
 			rdd.saveAsNewAPIHadoopDataset(jobInit(sc).getConfiguration())
 		}
@@ -141,4 +148,17 @@ object Main extends IPropertiesTrait {
 		(format.format(now),timeformat.format(now),timeformat.format(cal.getTime))
 	}
 
+	def initDeviceStation(sqlContext:SQLContext) = {
+		val map = scala.collection.mutable.Map[String,Map[String,String]]()
+		for(i <- List("rzx","ty","sensordoor","ajm")) {
+			val smap = scala.collection.mutable.Map[String,String]()
+			val temp = sqlContext.read.parquet("DeviceStation/"+i).rdd.map(_.mkString(",")).collect
+			for (ss <- temp){
+				val arr = ss.split(",")
+				smap += (arr(0) -> arr(1))
+			}
+			map += (i -> smap.toMap)
+		}
+		map.toMap
+	}
 }

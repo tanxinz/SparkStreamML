@@ -4,6 +4,7 @@ import org.apache.spark.sql.DataFrame
 import org.apache.hadoop.hbase.client.Put
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.util.Bytes
+import org.apache.spark.broadcast.Broadcast
 
 import com.sibat.gongan.imp.Core
 
@@ -15,7 +16,7 @@ object AJMAccountBase extends Core {
                   ap_mac:java.lang.String,coordinate:java.lang.String,dev_addr:java.lang.String,recieveTime:java.lang.String)
 
 
-          def trail(df:DataFrame,start:String,end:String,date:String) = {
+          def trail(df:DataFrame,start:String,end:String,date:String,devicestation:Broadcast[Map[String,Map[String,String]]]) = {
             df.where("recieveTime > '"+start+"' and recieveTime <= '"+end+"'").rdd
                     .map(arr =>{
                       val s = Account(arr.getString(0),arr.getString(1),arr.getString(2),arr.getString(3),
