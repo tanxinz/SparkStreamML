@@ -68,13 +68,13 @@ object Main extends IPropertiesTrait {
 		val save = save2Hbase(sc,sqlContext,times,devicestation)_
 		// save(TYMACBase,TYMACTABLENAME)
 		// save(TYIMSIBase,MACTABLE)
-		save(SZTBase,SZTTABLENAME)
+		save(SZTBase,SZTTABLENAME, SZTTABLENAME)
 		// save(AJM4GBase,AJM4GTABLE)
 		// save(AJMWIFIBase,AJMWIFITABLE)
 		// save(AJMAccountBase,AJMACCOUNTTABLE)
-		save(APPointBase,MACTABLE)
-		save(RZXFeatureBase,MACTABLE)
-		save(SensorIdcardBase,IDNOTABLE)
+		save(APPointBase,APPOINTTABLE,MACTABLE)
+		save(RZXFeatureBase,RZXFEATURETABLE,MACTABLE)
+		save(SensorIdcardBase,SENSORDOORIDCARDTABLE,IDNOTABLE)
 
 		Try{
 			val szt = sqlContext.read.parquet("/user/hadoop/GongAn/szt/"+times._1)
@@ -128,9 +128,9 @@ object Main extends IPropertiesTrait {
 	 * 保存轨迹
 	**/
 	def save2Hbase(sc:SparkContext,sqlContext:SQLContext,times:Tuple3[String,String,String],devicestation:Broadcast[Map[String,Map[String,String]]])
-								(base:Core,tablename:String) = {
+								(base:Core,dataname:String,tablename:String) = {
 		Try{
-			val data = sqlContext.read.parquet("/user/hadoop/GongAn/"+tablename+"/"+times._1)
+			val data = sqlContext.read.parquet("/user/hadoop/GongAn/"+dataname+"/"+times._1)
 			val rdd = base.trail(data,times._3,times._2,times._1,devicestation)
 			sc.hadoopConfiguration.set(TableOutputFormat.OUTPUT_TABLE, tablename)
 			rdd.saveAsNewAPIHadoopDataset(jobInit(sc).getConfiguration())
