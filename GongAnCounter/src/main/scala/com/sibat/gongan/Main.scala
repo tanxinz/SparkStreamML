@@ -67,14 +67,14 @@ object Main extends IPropertiesTrait {
 
 		val save = save2Hbase(sc,sqlContext,times,devicestation)_
 		// save(TYMACBase,TYMACTABLENAME)
-		save(TYIMSIBase,MACTABLENAME)
+		// save(TYIMSIBase,MACTABLE)
 		save(SZTBase,SZTTABLENAME)
 		// save(AJM4GBase,AJM4GTABLE)
 		// save(AJMWIFIBase,AJMWIFITABLE)
 		// save(AJMAccountBase,AJMACCOUNTTABLE)
 		save(APPointBase,MACTABLE)
-		save(RZXFeatureBase,IDNOTABLE)
-		// save(SensorIdcardBase,SENSORDOORIDCARDTABLE)
+		save(RZXFeatureBase,MACTABLE)
+		save(SensorIdcardBase,IDNOTABLE)
 
 		Try{
 			val szt = sqlContext.read.parquet("/user/hadoop/GongAn/szt/"+times._1)
