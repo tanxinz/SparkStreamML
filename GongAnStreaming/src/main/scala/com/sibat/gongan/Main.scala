@@ -27,7 +27,11 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 
 	def sparkInit(appName:String):SparkContext = new SparkContext(new SparkConf().setAppName(appName).set("spark.cores.max","16"))
 
-	def sparkStreamingInit(sc:SparkContext)(sec:Int):StreamingContext = new StreamingContext(sc,Seconds(sec))
+	def sparkStreamingInit(sc:SparkContext)(sec:Int)():StreamingContext = {
+		val ssc = new StreamingContext(sc,Seconds(sec))
+		ssc.checkpoint("checkpoint")
+		ssc
+	}
 
 	def kafkaProducerConfig(brokers:String) = {
     	val p = new Properties()
@@ -47,7 +51,7 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 		//sql 生成
 		val sqlContext:SQLContext = new SQLContext(sc)
 
-		val ssc = sparkStreamingInit(sc)(APPSTREAMINGSPAN.toInt)
+		val ssc = StreamingContext.getOrCreate("checkpoint",sparkStreamingInit(sc)(APPSTREAMINGSPAN.toInt) _)
 
 		// 广播KafkaSink
 		val kafkaProducer: Broadcast[KafkaSink[String, String]] = ssc.sparkContext.broadcast(KafkaSink[String, String](kafkaProducerConfig(KAFKABROKERS)))
@@ -91,8 +95,6 @@ object Main extends IPropertiesTrait with StatusTrait with CommonCoreTrait{
 
 		// val warnningBase = new WarnningBase(devicestation)
 		WarnningBase.setDeviceStationMap(devicestation)
-
-		ssc.checkpoint("checkpoint")
 
 		Try{
 			for(topic <- INPUTTOPICS.split(",")){

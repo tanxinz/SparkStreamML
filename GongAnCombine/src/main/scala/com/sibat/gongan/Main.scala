@@ -71,8 +71,8 @@ object Main  extends IPropertiesTrait{
 		// airportsRDD.saveToEsWithMeta("airports/2015")
 
 		// 时空碰撞
-		val datapath = "GongAn"
-		val date = args(1)
+		val datapath = args(1)
+		val date = args(2)
 		val idno = IDNOBase.getDF(sqlContext,date,datapath)
 		val mac = MACBase.getDF(sqlContext,date,datapath)
 		val imsi = IMSIBase.getDF(sqlContext,date,datapath)
