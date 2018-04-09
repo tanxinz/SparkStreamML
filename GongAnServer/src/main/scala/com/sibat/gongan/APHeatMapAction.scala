@@ -41,6 +41,12 @@ class APHeatMapAction extends HBaseActionTrait{
     else halt(404,"Not Found!!")
   }
 
+  get("/predict_history/:time1/:time2/:id"){
+    val res = HBaseScanByPrefixFilter(tablename,params("id"),params("time1"),params("time2"))
+    if (res!= null) format(res)
+    else halt(404,"Not Found!!")
+  }
+
   def getTimes(min:Int) = {
     val timeformat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
     val cal = java.util.Calendar.getInstance()
