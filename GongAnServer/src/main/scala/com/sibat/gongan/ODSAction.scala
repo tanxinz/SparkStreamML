@@ -43,6 +43,12 @@ class ODSAction extends HBaseActionTrait{
 		(timeformat.format(now),timeformat.format(cal.getTime))
 	}
 
+  get("/scan/:start/:stop") {
+    val res = HBaseScanByKey(tablename,params("start"),params("stop"))
+    if (res!= null) format(res)
+    else halt(404,"Not Found!!")
+  }
+
   get("/regex/:regex") {
     val times = getTimes()
     params("regex") match {
