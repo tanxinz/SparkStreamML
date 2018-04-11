@@ -5,7 +5,7 @@ import com.sibat.gongan.imp.{Core,ESQueryTrait,IPropertiesTrait}
 import java.util.Properties
 import scala.util.{Try,Failure,Success}
 import org.apache.spark.sql.{SQLContext,DataFrame}
-import org.apache.spark.sql.functions.{col,sum}
+import org.apache.spark.sql.functions.{col,sum,count,abs}
 
 import com.sibat.gongan.util.TimeDistance
 import com.sibat.gongan.imp.IPropertiesTrait
@@ -48,6 +48,15 @@ object RelationBase extends IPropertiesTrait{
       case Success(x) => x.asInstanceOf[DataFrame]
     }
 
+  }
+
+  def CalculateBsRate(sqlContext:SQLContext)(same:DataFrame,diff:DataFrame,df1:DataFrame,df2:DataFrame,df1col:String,df2col:String):DataFrame = {
+    val diffs = diff.withColumn("count",-col("count"))
+    val merges = same.union(diffs).groupBy(df1col,df2col).agg(sum("count").alias("count"))
+    val df1g = df1.groupBy(df1col).agg(count(df1col).alias(df1col+"count"))
+    val df2g = df2.groupBy(df2col).agg(count(df2col).alias(df2col+"count"))
+    merges.join(df1g,Seq(df1col)).join(df2g,Seq(df2col))
+          .withColumn("rate",(col("count")*abs(col("count")))/(col(df1col+"count")*col(df2col+"count")))
   }
 
 }
