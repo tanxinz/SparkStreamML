@@ -73,7 +73,7 @@ object Main  extends IPropertiesTrait{
 		// 时空碰撞
 		val datapath = args(1)
 		val date = args(2)
-		val idno = IDNOBase.getDF(sqlContext,date,datapath)
+		val idno = IDNOBase.V1.getDF(sqlContext,date,datapath)
 		val mac = MACBase.V1.getDF(sqlContext,date,datapath)
 		val imsi = IMSIBase.getDF(sqlContext,date,datapath)
 		val macimsi = RelationBase.CalcuteSameTime(mac,imsi,"mactime","imsitime","mac","imsi","macstation","imsistation")
