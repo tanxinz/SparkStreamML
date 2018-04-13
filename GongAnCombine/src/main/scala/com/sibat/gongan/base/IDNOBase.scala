@@ -26,7 +26,7 @@ object IDNOBase {
     def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
       val sensordoor = subDF(sqlContext,datapath+"/sensordoor_idcard/"+date,"DeviceStation/sensordoor","mac")
                        .withColumnRenamed("station","idnostation")
-      sensordoor.select("idno","idnostation","idnotime").filter("idno != 'null'")
+      sensordoor.select("idno","idnostation","idnostarttime","idnoendtime").filter("idno != 'null'")
     }
 
     def subDF(sqlContext:SQLContext,datapath:String,locationpath:String,locationcol:String) = {

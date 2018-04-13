@@ -28,7 +28,8 @@ object TimeDistance extends IPropertiesTrait{
 **/
   def addTime(format:java.text.SimpleDateFormat)(f:(Long,Long)=>Long,a:String) = {
     val d = format.parse(a)
-    format.format(
+    val afterformat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    afterformat.format(
       new java.util.Date(
         f.apply(d.getTime , LAST_TIME_IN_METRO_STATION.toInt * 1000)
       )
