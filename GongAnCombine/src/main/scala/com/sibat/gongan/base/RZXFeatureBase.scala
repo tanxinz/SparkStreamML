@@ -3,6 +3,9 @@ import com.sibat.gongan.imp.Core
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.DataFrame
 
+import com.sibat.gongan.util.TimeDistance
+import com.sibat.gongan.base._
+
 
 /****
   wifi热点特征日志
@@ -38,6 +41,17 @@ CONSULT_YPOINT	VARCHAR(8)	WIFI终端相对采集设备的Y坐标(正北方向)�
 ***/
 
 object RZXFeatureBase extends Core {
+
+  /**
+    任子行在进出站安装，所以理论持续时间为扫描时间+-LAST_TIME_IN_METRO_STATION
+  **/
+  case class TT(mac:String,macstarttime:String,macendtime:String,devicenum:String)
+  def formatTime(data:DataFrame) = {
+    data.rdd.map(arr =>
+      TT(arr(14).toString,TimeDistance.addTime(_-_,arr(21).toString),
+                          TimeDistance.addTime(_+_,arr(21).toString),
+                          arr(7).toString))
+  }
 
   // case class Feature(account:java.lang.String,apchannel:java.lang.String,apencartype:java.lang.String,bssid:java.lang.String,companyid:java.lang.String
   //                   ,consultxpoint:java.lang.String,consultypoint:java.lang.String,

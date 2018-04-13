@@ -65,6 +65,8 @@ trait IPropertiesTrait {
 
   def CLOSETIME = GET("closeTime")
 
+  def LAST_TIME_IN_METRO_STATION = GET("LastInStationTime")
+
   def HISTORYATTENUATION = GET("historyAttenuation")
 
 }

@@ -4,7 +4,16 @@ package com.sibat.gongan.base
 // import com.sibat.gongan.imp.{Core,ESQueryTrait,CommonCoreTrait,IPropertiesTrait,StatusTrait}
 //
 //
-// object APPointBase extends Core with ESQueryTrait with IPropertiesTrait with CommonCoreTrait{
+object APPointBase extends Core {
+
+  /**
+    ap在室内，所以理论持续时间为该车站第一次出现的
+  **/
+  case class TT(mac:String,macstarttime:String,macendtime:String,macstation:String)
+  def formatTime(data:DataFrame) = {
+    data.rdd.map(arr =>
+      TT(
+  }
 //
 //   case class Point(mac:java.lang.String,bid:java.lang.String,fid:java.lang.String,aid:java.lang.String,apid:java.lang.String,
 //     stime:java.lang.String,longtitude:java.lang.String,latitude:java.lang.String,recieveTime:java.lang.String)
@@ -49,4 +58,4 @@ package com.sibat.gongan.base
 //     warning.toList
 //   }
 //
-// }
+}
