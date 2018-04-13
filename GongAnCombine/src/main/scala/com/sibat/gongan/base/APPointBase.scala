@@ -1,9 +1,12 @@
 package com.sibat.gongan.base
 
-// import com.sibat.gongan.util.EZJSONParser
-// import com.sibat.gongan.imp.{Core,ESQueryTrait,CommonCoreTrait,IPropertiesTrait,StatusTrait}
-//
-//
+import com.sibat.gongan.imp.Core
+import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.DataFrame
+
+import com.sibat.gongan.util.TimeDistance
+import com.sibat.gongan.base._
+
 object APPointBase extends Core {
 
   /**
@@ -11,7 +14,7 @@ object APPointBase extends Core {
   **/
   case class TT(mac:String,macstarttime:String,macendtime:String,macstation:String)
   def formatTime(data:DataFrame) = {
-    data.rdd.map(arr => (arr(0).toString, List(arr(5),arr(1),arr(0)).mkString(","))
+    data.rdd.map(arr => (arr(0).toString, List(arr(5),arr(1),arr(0)).mkString(",")))
         .groupByKey().flatMap(makeLastOneStation)
         .map(_.split(",")).map(arr =>
                           TT(arr(0),arr(1),arr(2),arr(3))
@@ -24,7 +27,7 @@ object APPointBase extends Core {
     val L2 = s2.split(",")
     if(! L1(1).equals(L2(1))) true
     else if
-    (scala.math.abs(format.format(L1(0)) - format.format(L2(0)))
+    (scala.math.abs(format.parse(L1(0)).getTime - format.parse(L2(0)).getTime)
                     > 10*60*1000)
                     true
     else false
@@ -36,23 +39,24 @@ object APPointBase extends Core {
     var last:String = arr(0).split(",")(1)
     var lasttime:String = arr(0).split(",")(0)
     for(i <- 0 until arr.size - 1 ){
-      if satifyLast(arr(i),arr(i+1)){
+      if (satifyLast(arr(i),arr(i+1))){
         res += List(x._1,last,lasttime,
                     arr(i+1).split(",")(0))
                     .mkString(",")
         last = arr(i+1).split(",")(1)
         lasttime = arr(i+1).split(",")(0)
+      }
     }
-    if(last.equals(arr(i+1).split(",")(1))
-        && lasttime.equals(arr(i+1).split(",")(0))){
+    if(last.equals(arr(arr.size - 1).split(",")(1))
+        && lasttime.equals(arr(arr.size - 1).split(",")(0))){
           //add time
-          res += List(x._1,last,TimeDistance.addTime(_-_,lasttime,2*60),
-                    TimeDistance.addTime(_+_,lasttime,2*60))
+          res += List(x._1,last,TimeDistance.addTime(_-_,lasttime,1*60),
+                    TimeDistance.addTime(_+_,lasttime,1*60))
                     .mkString(",")
         }
     else {
         res += List(x._1,last,lasttime,
-                    arr(i+1).split(",")(1),arr(i+1).split(",")(0))
+                    arr(arr.size - 1).split(",")(1),arr(arr.size - 1).split(",")(0))
                     .mkString(",")
     }
     res

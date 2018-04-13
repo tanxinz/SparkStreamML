@@ -14,11 +14,19 @@ object TimeDistance extends IPropertiesTrait{
     scala.math.abs(d1.getTime - d2.getTime) <= CLOSETIME.toInt * 1000
   }
 
+  def filter(astart:String,aend:String,bstart:String,bend:String) = {
+    val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val d1start = format.parse(astart)
+    val d1end = format.parse(aend)
+    val d2start = format.parse(bstart)
+    val d2end = format.parse(bend)
+    (! (d1start.after(d2end) || d2start.after(d1end)) )
+  }
+
 /**
   LAST_TIME_IN_METRO_STATION：second
 **/
-  def addTime(f:(Long,Long)=>Long,a:String) = {
-    val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  def addTime(format:java.text.SimpleDateFormat)(f:(Long,Long)=>Long,a:String) = {
     val d = format.parse(a)
     format.format(
       new java.util.Date(

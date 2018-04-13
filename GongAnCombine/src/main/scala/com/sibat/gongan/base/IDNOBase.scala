@@ -2,6 +2,8 @@ package com.sibat.gongan.base
 
 import org.apache.spark.sql.SQLContext
 import scala.collection.Seq
+import org.apache.spark.sql.DataFrame
+import com.sibat.gongan.util.TimeDistance
 
 object IDNOBase {
   def getDF(sqlContext:SQLContext,date:String,datapath:String) = {
@@ -14,6 +16,16 @@ object IDNOBase {
     val location = sqlContext.read.parquet(locationpath)
     val df = sqlContext.read.parquet(datapath).drop("station")
     df.join(location,Seq(locationcol),"inner")
+  }
+
+  case class TT(idno:String,idnostarttime:String,idnoendtime:String,mac:String)
+  def formatTime(data:DataFrame) = {
+    val format = new java.text.SimpleDateFormat("yyyy_MM_dd_HH_mm_ss")
+    val addtime = TimeDistance.addTime(format)_
+    data.rdd.map(arr =>
+      TT(arr(3).toString,addtime(_-_,arr(2).toString),
+                         addtime(_+_,arr(2).toString),
+                         arr(0).toString))
   }
 
 }

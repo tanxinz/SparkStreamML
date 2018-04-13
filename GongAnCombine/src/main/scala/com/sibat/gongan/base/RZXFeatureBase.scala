@@ -47,9 +47,11 @@ object RZXFeatureBase extends Core {
   **/
   case class TT(mac:String,macstarttime:String,macendtime:String,devicenum:String)
   def formatTime(data:DataFrame) = {
+    val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val addtime = TimeDistance.addTime(format)_
     data.rdd.map(arr =>
-      TT(arr(14).toString,TimeDistance.addTime(_-_,arr(21).toString),
-                          TimeDistance.addTime(_+_,arr(21).toString),
+      TT(arr(14).toString,addtime(_-_,arr(21).toString),
+                          addtime(_+_,arr(21).toString),
                           arr(7).toString))
   }
 
