@@ -27,4 +27,17 @@ object TimeDistance extends IPropertiesTrait{
     )
   }
 
+  /**
+    LAST_TIME_IN_METRO_STATION：second
+  **/
+    def addTime(f:(Long,Long)=>Long,a:String,span:Int) = {
+      val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+      val d = format.parse(a)
+      format.format(
+        new java.util.Date(
+          f.apply(d.getTime , span * 1000)
+        )
+      )
+    }
+
 }

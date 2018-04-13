@@ -11,9 +11,54 @@ object APPointBase extends Core {
   **/
   case class TT(mac:String,macstarttime:String,macendtime:String,macstation:String)
   def formatTime(data:DataFrame) = {
-    data.rdd.map(arr =>
-      TT(
+    data.rdd.map(arr => (arr(0).toString, List(arr(5),arr(1),arr(0)).mkString(","))
+        .groupByKey().flatMap(makeLastOneStation)
+        .map(_.split(",")).map(arr =>
+                          TT(arr(0),arr(1),arr(2),arr(3))
+                        )
   }
+
+  def satifyLast(s1:String,s2:String) = {
+    val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val L1 = s1.split(",")
+    val L2 = s2.split(",")
+    if(! L1(1).equals(L2(1))) true
+    else if
+    (scala.math.abs(format.format(L1(0)) - format.format(L2(0)))
+                    > 10*60*1000)
+                    true
+    else false
+  }
+
+  def makeLastOneStation(x:(String,Iterable[String])) = {
+    val arr = x._2.toArray.sortWith((x,y) => x < y)
+    val res = scala.collection.mutable.ArrayBuffer[String]()
+    var last:String = arr(0).split(",")(1)
+    var lasttime:String = arr(0).split(",")(0)
+    for(i <- 0 until arr.size - 1 ){
+      if satifyLast(arr(i),arr(i+1)){
+        res += List(x._1,last,lasttime,
+                    arr(i+1).split(",")(0))
+                    .mkString(",")
+        last = arr(i+1).split(",")(1)
+        lasttime = arr(i+1).split(",")(0)
+    }
+    if(last.equals(arr(i+1).split(",")(1))
+        && lasttime.equals(arr(i+1).split(",")(0))){
+          //add time
+          res += List(x._1,last,TimeDistance.addTime(_-_,lasttime,2*60),
+                    TimeDistance.addTime(_+_,lasttime,2*60))
+                    .mkString(",")
+        }
+    else {
+        res += List(x._1,last,lasttime,
+                    arr(i+1).split(",")(1),arr(i+1).split(",")(0))
+                    .mkString(",")
+    }
+    res
+  }
+
+
 //
 //   case class Point(mac:java.lang.String,bid:java.lang.String,fid:java.lang.String,aid:java.lang.String,apid:java.lang.String,
 //     stime:java.lang.String,longtitude:java.lang.String,latitude:java.lang.String,recieveTime:java.lang.String)
