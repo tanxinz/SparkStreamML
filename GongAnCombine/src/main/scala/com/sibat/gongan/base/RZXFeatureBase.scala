@@ -45,16 +45,64 @@ object RZXFeatureBase extends Core {
   /**
     任子行在进出站安装，所以理论持续时间为扫描时间+-LAST_TIME_IN_METRO_STATION
   **/
-  case class TT(mac:String,macstarttime:String,macendtime:String,devicenum:String)
+  case class TT(mac:String,devicenum:String,macstarttime:String,macendtime:String)
+  // def formatTime(data:DataFrame) = {
+  //   val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+  //   val addtime = TimeDistance.addTime(format)_
+  //   data.rdd.map(arr =>
+  //     TT(arr(14).toString,addtime(_-_,arr(21).toString),
+  //                         addtime(_+_,arr(21).toString),
+  //                         arr(7).toString))
+  // }
+
   def formatTime(data:DataFrame) = {
-    val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-    val addtime = TimeDistance.addTime(format)_
-    data.rdd.map(arr =>
-      TT(arr(14).toString,addtime(_-_,arr(21).toString),
-                          addtime(_+_,arr(21).toString),
-                          arr(7).toString))
+    data.rdd.map(arr => (arr(14).toString, List(arr(21),arr(7),arr(14)).mkString(",")))
+        .groupByKey().flatMap(makeLastOneStation)
+        .map(_.split(",")).map(arr =>
+                          TT(arr(0),arr(1),arr(2),arr(3))
+                        )
   }
 
+  def satifyLast(s1:String,s2:String) = {
+    val format = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val L1 = s1.split(",")
+    val L2 = s2.split(",")
+    if(! L1(1).equals(L2(1))) true
+    else if
+    (scala.math.abs(format.parse(L1(0)).getTime - format.parse(L2(0)).getTime)
+                    > 10*60*1000)
+                    true
+    else false
+  }
+
+  def makeLastOneStation(x:(String,Iterable[String])) = {
+    val arr = x._2.toArray.sortWith((x,y) => x < y)
+    val res = scala.collection.mutable.ArrayBuffer[String]()
+    var last:String = arr(0).split(",")(1)
+    var lasttime:String = arr(0).split(",")(0)
+    for(i <- 0 until arr.size - 1 ){
+      if (satifyLast(arr(i),arr(i+1))){
+        res += List(x._1,last,lasttime,
+                    arr(i+1).split(",")(0))
+                    .mkString(",")
+        last = arr(i+1).split(",")(1)
+        lasttime = arr(i+1).split(",")(0)
+      }
+    }
+    if(last.equals(arr(arr.size - 1).split(",")(1))
+        && lasttime.equals(arr(arr.size - 1).split(",")(0))){
+          //add time
+          res += List(x._1,last,TimeDistance.addTime(_-_,lasttime,1*60),
+                    TimeDistance.addTime(_+_,lasttime,1*60))
+                    .mkString(",")
+        }
+    else {
+        res += List(x._1,last,lasttime,
+                    arr(arr.size - 1).split(",")(0))
+                    .mkString(",")
+    }
+    res
+  }
   // case class Feature(account:java.lang.String,apchannel:java.lang.String,apencartype:java.lang.String,bssid:java.lang.String,companyid:java.lang.String
   //                   ,consultxpoint:java.lang.String,consultypoint:java.lang.String,
   //                     devicenum:java.lang.String,devmac:java.lang.String,endtime:java.lang.String,essid:java.lang.String,historyessid:java.lang.String

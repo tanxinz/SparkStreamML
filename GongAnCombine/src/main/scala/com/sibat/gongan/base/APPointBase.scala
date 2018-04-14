@@ -12,7 +12,7 @@ object APPointBase extends Core {
   /**
     ap在室内，所以理论持续时间为该车站第一次出现的
   **/
-  case class TT(mac:String,macstarttime:String,macendtime:String,macstation:String)
+  case class TT(mac:String,macstation:String,macstarttime:String,macendtime:String)
   def formatTime(data:DataFrame) = {
     data.rdd.map(arr => (arr(0).toString, List(arr(5),arr(1),arr(0)).mkString(",")))
         .groupByKey().flatMap(makeLastOneStation)
@@ -56,7 +56,7 @@ object APPointBase extends Core {
         }
     else {
         res += List(x._1,last,lasttime,
-                    arr(arr.size - 1).split(",")(1),arr(arr.size - 1).split(",")(0))
+                    arr(arr.size - 1).split(",")(0))
                     .mkString(",")
     }
     res
